@@ -19,7 +19,11 @@ function getPostgresUrl(): string {
 }
 
 function createPrismaClient() {
-  const pool = new pg.Pool({ connectionString: getPostgresUrl() });
+  const url = getPostgresUrl();
+  const pool = new pg.Pool({
+    connectionString: url,
+    ssl: url.includes("supabase.co") ? { rejectUnauthorized: false } : undefined,
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
