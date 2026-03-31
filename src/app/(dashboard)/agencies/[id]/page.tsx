@@ -179,7 +179,7 @@ export default function AgencyDetailPage({
           </div>
 
           <Button variant="primary" size="lg" asChild className="shrink-0">
-            <Link href={`/request/new?agency=${agency.id}`}>Start a Request</Link>
+            <Link href={`/request?agency=${agency.id}`}>Start a Request</Link>
           </Button>
         </div>
       </div>
@@ -325,7 +325,7 @@ export default function AgencyDetailPage({
           <div className="border border-border bg-surface p-8 text-center">
             <p className="text-muted-foreground">No requests filed yet.</p>
             <Button variant="primary" size="sm" asChild className="mt-3">
-              <Link href={`/request/new?agency=${agency.id}`}>Start one?</Link>
+              <Link href={`/request?agency=${agency.id}`}>Start one?</Link>
             </Button>
           </div>
         ) : (

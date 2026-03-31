@@ -187,7 +187,7 @@ function AgencyCard({
           <Link href={`/agencies/${agency.id}`}>View Details</Link>
         </Button>
         <Button variant="primary" size="sm" asChild className="flex-1">
-          <Link href={`/request/new?agency=${agency.id}`}>Start Request</Link>
+          <Link href={`/request?agency=${agency.id}`}>Start Request</Link>
         </Button>
       </div>
     </div>
