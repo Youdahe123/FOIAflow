@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Failed to fetch agencies:", error);
     return NextResponse.json(
-      { error: "Failed to fetch agencies" },
+      { error: "Failed to fetch agencies", detail: String(error) },
       { status: 500 }
     );
   }
