@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String           @id @default(uuid()) @db.Uuid
+  supabaseId        String           @unique @map("supabase_id")
+  email             String           @unique
+  fullName          String?          @map("full_name")
+  avatarUrl         String?          @map("avatar_url")
+  role              UserRole         @default(JOURNALIST)
+  stripeCustomerId  String?          @unique @map("stripe_customer_id")
+  subscriptionId    String?          @unique @map("subscription_id")
+  subscriptionTier  SubscriptionTier @default(FREE_TRIAL) @map("subscription_tier")
+  trialEndsAt       DateTime?        @map("trial_ends_at")
+  requests          Request[]
+  documents         Document[]
+  teamMemberships   TeamMember[]
+  activities        Activity[]
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+enum UserRole {
+  JOURNALIST
+  EDITOR
+  ADMIN
+}
+
+enum SubscriptionTier {
+  FREE_TRIAL
+  STARTER
+  PRO
+  NEWSROOM
+}
+
+model Request {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  subject         String
+  description     String        @db.Text
+  generatedLetter String?       @map("generated_letter") @db.Text
+  appealLetter    String?       @map("appeal_letter") @db.Text
+  agencyId        String?       @map("agency_id") @db.Uuid
+  agency          Agency?       @relation(fields: [agencyId], references: [id])
+  status          RequestStatus @default(DRAFT)
+  qualityScore    Int?          @map("quality_score")
+  filedAt         DateTime?     @map("filed_at")
+  dueDate         DateTime?     @map("due_date")
+  respondedAt     DateTime?     @map("responded_at")
+  documents       Document[]
+  followUps       FollowUp[]
+  activities      Activity[]
+  teamId          String?       @map("team_id") @db.Uuid
+  team            Team?         @relation(fields: [teamId], references: [id])
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([agencyId])
+  @@index([status])
+  @@map("requests")
+}
+
+enum RequestStatus {
+  DRAFT
+  READY_TO_FILE
+  FILED
+  ACKNOWLEDGED
+  PROCESSING
+  PARTIAL_RESPONSE
+  COMPLETED
+  DENIED
+  APPEALED
+  APPEAL_PENDING
+  OVERDUE
+}
+
+model FollowUp {
+  id        String       @id @default(uuid()) @db.Uuid
+  requestId String       @map("request_id") @db.Uuid
+  request   Request      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  type      FollowUpType
+  content   String       @db.Text
+  sentAt    DateTime?    @map("sent_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@map("follow_ups")
+}
+
+enum FollowUpType {
+  STATUS_CHECK
+  DEADLINE_REMINDER
+  APPEAL
+  CUSTOM
+}
+
+model Agency {
+  id                  String      @id @default(uuid()) @db.Uuid
+  name                String
+  abbreviation        String?
+  level               AgencyLevel
+  jurisdiction        String?
+  foiaEmail           String?     @map("foia_email")
+  foiaUrl             String?     @map("foia_url")
+  foiaPhone           String?     @map("foia_phone")
+  mailingAddress      String?     @map("mailing_address") @db.Text
+  foiaOfficer         String?     @map("foia_officer")
+  description         String?     @db.Text
+  averageResponseDays Int?        @map("average_response_days")
+  complianceRating    Float?      @map("compliance_rating")
+  category            String?
+  requests            Request[]
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@index([level])
+  @@map("agencies")
+}
+
+enum AgencyLevel {
+  FEDERAL
+  STATE
+  LOCAL
+  TRIBAL
+}
+
+model Document {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId      String?        @map("request_id") @db.Uuid
+  request        Request?       @relation(fields: [requestId], references: [id])
+  fileName       String         @map("file_name")
+  fileType       String         @map("file_type")
+  fileSize       Int            @map("file_size")
+  storagePath    String         @map("storage_path")
+  analysisStatus AnalysisStatus @default(PENDING) @map("analysis_status")
+  analysisResult Json?          @map("analysis_result")
+  redactionCount Int?           @map("redaction_count")
+  pageCount      Int?           @map("page_count")
+  summary        String?        @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([requestId])
+  @@map("documents")
+}
+
+enum AnalysisStatus {
+  PENDING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+model Team {
+  id         String       @id @default(uuid()) @db.Uuid
+  name       String
+  slug       String       @unique
+  members    TeamMember[]
+  requests   Request[]
+  activities Activity[]
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId   String   @map("team_id") @db.Uuid
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Activity {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String?  @map("request_id") @db.Uuid
+  request   Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  teamId    String?  @map("team_id") @db.Uuid
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([teamId])
+  @@map("activities")
+}

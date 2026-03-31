@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #FAFAF8;
+  --color-foreground: #1A1A1A;
+  --color-primary: #6B0000;
+  --color-primary-light: #8B1A1A;
+  --color-primary-dark: #4A0000;
+  --color-secondary: #CC2222;
+  --color-secondary-light: #E04444;
+  --color-secondary-dark: #AA1111;
+  --color-muted: #F5F5F3;
+  --color-muted-foreground: #6B6B6B;
+  --color-border: #E5E5E0;
+  --color-accent: #F0E8E0;
+  --color-surface: #FFFFFF;
+  --color-success: #1A7A3A;
+  --color-warning: #B45309;
+  --color-danger: #CC2222;
+
+  --font-heading: var(--font-dm-serif);
+  --font-body: var(--font-inter);
+  --font-document: var(--font-libre);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
+  button, [role="button"] {
+    border-radius: 0 !important;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+}
+
+/* ── Scroll-triggered animations ──────────────────────────────────── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes draw-line {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes count-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Intersection Observer triggered classes */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(32px);
+}
+
+.animate-on-scroll.is-visible {
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-slide-left {
+  opacity: 0;
+  transform: translateX(-40px);
+}
+.animate-slide-left.is-visible {
+  animation: slide-in-left 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-slide-right {
+  opacity: 0;
+  transform: translateX(40px);
+}
+.animate-slide-right.is-visible {
+  animation: slide-in-right 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-scale-in {
+  opacity: 0;
+  transform: scale(0.92);
+}
+.animate-scale-in.is-visible {
+  animation: scale-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Stagger children */
+.stagger-children.is-visible > * {
+  opacity: 0;
+  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger-children.is-visible > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children.is-visible > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children.is-visible > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children.is-visible > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children.is-visible > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-children.is-visible > *:nth-child(6) { animation-delay: 400ms; }
+
+/* Letter typing line animation */
+.letter-line {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid transparent;
+  width: 0;
+}
+.letter-line.is-typing {
+  animation: typing 1.2s steps(40, end) forwards;
+  border-right-color: var(--color-primary);
+}
+.letter-line.is-typed {
+  width: 100%;
+  border-right-color: transparent;
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Interactive card hover lift */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-primary);
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
