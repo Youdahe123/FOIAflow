@@ -12,6 +12,7 @@ interface Redaction {
   description: string;
   exemptionCode: string;
   exemptionName: string;
+  likelyReason: string;
 }
 
 interface Entity {
@@ -20,12 +21,19 @@ interface Entity {
   mentions: number;
 }
 
+interface FollowUpSuggestion {
+  description: string;
+  suggestedAgency: string;
+  reasoning: string;
+}
+
 interface AnalyzeDocumentResponse {
   summary: string;
   keyFindings: string[];
   redactions: Redaction[];
   entities: Entity[];
-  suggestedFollowUps: string[];
+  patterns: string[];
+  suggestedFollowUps: FollowUpSuggestion[];
 }
 
 export async function POST(request: NextRequest) {
@@ -49,7 +57,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `Analyze the FOIA response document "${body.fileName}" provided in the system prompt. Identify all redactions, key entities, and suggest follow-up requests.`,
+          content: `Analyze the document "${body.fileName}" provided in the system prompt. Extract all names, agencies, dates, dollar amounts, and locations. Identify every redaction and explain why it was likely redacted. Detect patterns across names, emails, and redactions. Suggest specific follow-up requests based on your findings.`,
         },
       ],
       temperature: 0.3,

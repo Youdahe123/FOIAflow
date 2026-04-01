@@ -29,6 +29,8 @@ function getEntityBadgeVariant(
       return "success";
     case "date":
       return "warning";
+    case "dollar_amount":
+      return "warning";
     case "location":
       return "default";
   }
@@ -42,6 +44,8 @@ function getEntityTypeLabel(type: EntityType): string {
       return "Organization";
     case "date":
       return "Date";
+    case "dollar_amount":
+      return "Dollar Amount";
     case "location":
       return "Location";
   }
@@ -310,11 +314,21 @@ function RedactionsTab({ doc }: { doc: Document }) {
           </div>
           <div className="divide-y divide-border">
             {items.map((item, i) => (
-              <div key={i} className="px-4 py-3 flex items-start gap-3">
-                <Badge variant="outline" size="sm" className="flex-shrink-0 mt-0.5">
-                  p.{item.page}
-                </Badge>
-                <p className="text-sm text-foreground">{item.description}</p>
+              <div key={i} className="px-4 py-3 space-y-1.5">
+                <div className="flex items-start gap-3">
+                  <Badge variant="outline" size="sm" className="flex-shrink-0 mt-0.5">
+                    p.{item.page}
+                  </Badge>
+                  <p className="text-sm text-foreground">{item.description}</p>
+                </div>
+                {item.likelyReason && (
+                  <div className="ml-[calc(theme(spacing.3)+theme(spacing.2))] pl-3 border-l-2 border-warning/30">
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-warning">Likely reason:</span>{" "}
+                      {item.likelyReason}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -341,13 +355,92 @@ function FollowUpsTab({ doc }: { doc: Document }) {
 
   return (
     <div className="space-y-4">
-      <h4 className="font-heading text-sm">Suggested follow-up requests</h4>
-      {followUps.map((suggestion, i) => (
+      <div className="bg-primary/5 border border-primary/20 p-3">
+        <p className="text-sm text-foreground font-medium">
+          Based on redactions and findings in this document, you should file these follow-up requests:
+        </p>
+      </div>
+
+      {followUps.map((suggestion, i) => {
+        // Support both string format (legacy) and object format (new)
+        const isObject = typeof suggestion === "object" && suggestion !== null;
+        const description = isObject ? (suggestion as { description: string }).description : String(suggestion);
+        const agency = isObject ? (suggestion as { suggestedAgency?: string }).suggestedAgency : undefined;
+        const reasoning = isObject ? (suggestion as { reasoning?: string }).reasoning : undefined;
+
+        // Build URL to pre-fill the request generator
+        const requestUrl = `/request?prefill=${encodeURIComponent(description)}${agency ? `&agency=${encodeURIComponent(agency)}` : ""}`;
+
+        return (
+          <div
+            key={i}
+            className="border border-border bg-surface p-4"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-accent text-primary">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="square"
+                >
+                  <path d="M2 7H12" />
+                  <path d="M7 2V12" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0 space-y-2">
+                <p className="text-sm text-foreground font-medium">{description}</p>
+                {agency && (
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">Target agency:</span> {agency}
+                  </p>
+                )}
+                {reasoning && (
+                  <p className="text-xs text-muted-foreground italic">
+                    {reasoning}
+                  </p>
+                )}
+                <Button variant="primary" size="sm" asChild>
+                  <Link href={requestUrl}>
+                    Create Follow-Up Request
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Patterns Tab
+// ---------------------------------------------------------------------------
+
+function PatternsTab({ doc }: { doc: Document }) {
+  const patterns = doc.analysisResult?.patterns ?? [];
+
+  if (patterns.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No significant patterns detected in this document.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h4 className="font-heading text-sm">Detected Patterns</h4>
+      {patterns.map((pattern, i) => (
         <div
           key={i}
-          className="border border-border bg-surface p-4 flex items-start gap-4"
+          className="border border-border bg-surface p-4 flex items-start gap-3"
         >
-          <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-accent text-primary">
+          <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-warning/10 text-warning mt-0.5">
             <svg
               width="14"
               height="14"
@@ -355,18 +448,13 @@ function FollowUpsTab({ doc }: { doc: Document }) {
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
-              strokeLinecap="square"
             >
-              <path d="M2 7H12" />
-              <path d="M7 2V12" />
+              <circle cx="7" cy="7" r="6" />
+              <line x1="7" y1="4" x2="7" y2="7.5" />
+              <circle cx="7" cy="10" r="0.5" fill="currentColor" />
             </svg>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-foreground mb-3">{suggestion}</p>
-            <Button variant="outline" size="sm">
-              Create Request
-            </Button>
-          </div>
+          <p className="text-sm text-foreground leading-relaxed">{pattern}</p>
         </div>
       ))}
     </div>
@@ -570,8 +658,9 @@ export default function DocumentDetailPage() {
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
                 <TabsTrigger value="entities">Entities</TabsTrigger>
+                <TabsTrigger value="patterns">Patterns</TabsTrigger>
+                <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
               </TabsList>
 
               <TabsContent value="summary">
@@ -582,12 +671,16 @@ export default function DocumentDetailPage() {
                 <RedactionsTab doc={doc} />
               </TabsContent>
 
-              <TabsContent value="followups">
-                <FollowUpsTab doc={doc} />
-              </TabsContent>
-
               <TabsContent value="entities">
                 <EntitiesTab doc={doc} />
+              </TabsContent>
+
+              <TabsContent value="patterns">
+                <PatternsTab doc={doc} />
+              </TabsContent>
+
+              <TabsContent value="followups">
+                <FollowUpsTab doc={doc} />
               </TabsContent>
             </Tabs>
           ) : (

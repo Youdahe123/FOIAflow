@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callAI, parseJsonResponse } from "@/lib/ai";
 import { getGenerateLetterPrompt } from "@/prompts/generate-letter";
+import type { RequestLaw } from "@/types";
 
 interface GenerateLetterRequest {
   description: string;
@@ -9,6 +10,8 @@ interface GenerateLetterRequest {
   agencyAddress?: string;
   foiaOfficer?: string;
   jurisdiction: string;
+  requestLaw?: RequestLaw;
+  requestLawName?: string;
   foiaEmail?: string;
 }
 
@@ -37,20 +40,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestLaw: RequestLaw = body.requestLaw ?? (body.jurisdiction === "Federal" ? "foia" : "state_foia");
+    const requestLawName = body.requestLawName ?? (body.jurisdiction === "Federal" ? "Freedom of Information Act (5 U.S.C. § 552)" : "State Public Records Act");
+
     const systemPrompt = getGenerateLetterPrompt({
       agencyName: body.agencyName,
       agencyAddress: body.agencyAddress,
       foiaOfficer: body.foiaOfficer,
       jurisdiction: body.jurisdiction as "Federal" | "State" | "Local",
+      requestLaw,
+      requestLawName,
       foiaEmail: body.foiaEmail,
     });
 
+    const isFoia = requestLaw === "foia";
     const response = await callAI({
       system: systemPrompt,
       messages: [
         {
           role: "user",
-          content: `Generate a FOIA request letter for the following records:\n\n${body.description}`,
+          content: `Generate a ${isFoia ? "FOIA" : "public records"} request letter for the following records:\n\n${body.description}`,
         },
       ],
       temperature: 0.4,

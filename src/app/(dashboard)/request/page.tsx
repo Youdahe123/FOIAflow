@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -341,6 +342,15 @@ function QualityScoreMini({ score }: { score: number }) {
 // ---------------------------------------------------------------------------
 
 export default function RequestBuilderPage() {
+  return (
+    <Suspense fallback={<div className="py-16 text-center text-muted-foreground">Loading...</div>}>
+      <RequestBuilderContent />
+    </Suspense>
+  );
+}
+
+function RequestBuilderContent() {
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(0);
   const [description, setDescription] = useState("");
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
@@ -359,6 +369,8 @@ export default function RequestBuilderPage() {
   const [scoring, setScoring] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [improvements, setImprovements] = useState<string[]>(IMPROVEMENT_SUGGESTIONS);
+  const [isBroadRequest, setIsBroadRequest] = useState(false);
+  const [broadRequestWarning, setBroadRequestWarning] = useState<string | null>(null);
   const [filing, setFiling] = useState(false);
   const [filed, setFiled] = useState(false);
   const [agencies, setAgencies] = useState<Agency[]>([]);
@@ -369,6 +381,14 @@ export default function RequestBuilderPage() {
       .then((json) => setAgencies(json.data ?? []))
       .catch(() => setAgencies([]));
   }, []);
+
+  // Pre-fill from Document Intel follow-up suggestions
+  useEffect(() => {
+    const prefill = searchParams.get("prefill");
+    if (prefill) {
+      setDescription(prefill);
+    }
+  }, [searchParams]);
 
   // Filtered agencies
   const filteredAgencies = useMemo(() => {
@@ -410,6 +430,8 @@ export default function RequestBuilderPage() {
           agencyAddress: selectedAgency.mailingAddress,
           foiaOfficer: selectedAgency.foiaOfficer,
           jurisdiction: selectedAgency.level === "federal" ? "Federal" : selectedAgency.level === "state" ? "State" : "Local",
+          requestLaw: selectedAgency.requestLaw,
+          requestLawName: selectedAgency.requestLawName,
           foiaEmail: selectedAgency.foiaEmail,
         }),
       });
@@ -469,15 +491,24 @@ export default function RequestBuilderPage() {
   // Score letter in background
   async function scoreLetterInBackground(letter: string) {
     setScoring(true);
+    setIsBroadRequest(false);
+    setBroadRequestWarning(null);
     try {
       const res = await fetch("/api/ai/score-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ letterText: letter }),
+        body: JSON.stringify({
+          letterText: letter,
+          requestLaw: selectedAgency?.requestLaw,
+        }),
       });
       const data = await res.json();
       if (res.ok && typeof data.score === "number") {
         setQualityScore(data.score);
+      }
+      if (res.ok && data.isBroadRequest) {
+        setIsBroadRequest(true);
+        setBroadRequestWarning(data.broadRequestWarning ?? "This request is very broad and may result in significant processing delays and fees. Consider narrowing by keyword, sender, date range, or department.");
       }
     } catch {
       // Non-critical — keep default score
@@ -591,12 +622,14 @@ export default function RequestBuilderPage() {
     setImprovements(IMPROVEMENT_SUGGESTIONS);
     setFiling(false);
     setFiled(false);
+    setIsBroadRequest(false);
+    setBroadRequestWarning(null);
   }
 
   // Build a preview letter based on description for live preview
   const previewLetter = useMemo(() => {
     if (currentStep === 0 && description.trim()) {
-      return `[Current Date]\n\nFOIA Officer\n[Agency Name]\n[Agency Address]\n\nRe: Freedom of Information Act Request\n\nDear FOIA Officer:\n\nPursuant to the Freedom of Information Act, 5 U.S.C. \u00a7 552, I hereby request access to and copies of the following records:\n\n${description.trim()}\n\n[Letter content will be generated based on your description...]\n\nSincerely,\n[Your Name]`;
+      return `[Current Date]\n\nRecords Officer\n[Agency Name]\n[Agency Address]\n\nRe: Public Records Request\n\nDear Records Officer:\n\nPursuant to applicable open records law, I hereby request access to and copies of the following records:\n\n${description.trim()}\n\n[Letter content will be generated based on your description and the agency you select...]\n\nSincerely,\n[Your Name]`;
     }
     return letterText;
   }, [currentStep, description, letterText]);
@@ -609,9 +642,33 @@ export default function RequestBuilderPage() {
           Request Builder
         </h1>
         <p className="text-muted-foreground mt-1">
-          Create a legally precise FOIA request in minutes.
+          Create a legally precise records request in minutes.
         </p>
       </div>
+
+      {/* Follow-up from Document Intel banner */}
+      {searchParams.get("prefill") && currentStep === 0 && (
+        <div className="bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="text-primary flex-shrink-0 mt-0.5"
+          >
+            <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+            <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Follow-up request from Document Intel
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              This request was pre-filled based on analysis of a previous document. Review the description and select an agency to continue.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Step indicator */}
       <StepIndicator currentStep={currentStep} steps={STEPS} />
@@ -761,6 +818,12 @@ export default function RequestBuilderPage() {
                         >
                           {agency.level}
                         </Badge>
+                        <Badge
+                          variant={agency.requestLaw === "foia" ? "primary" : agency.requestLaw === "data_practices" ? "warning" : "default"}
+                          size="sm"
+                        >
+                          {agency.requestLaw === "foia" ? "FOIA" : agency.requestLaw === "data_practices" ? "Data Practices Act" : "Public Records"}
+                        </Badge>
                         <StarRating rating={agency.complianceRating} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
@@ -805,7 +868,7 @@ export default function RequestBuilderPage() {
             <div className="space-y-6">
               <div>
                 <h2 className="font-heading text-2xl text-foreground">
-                  Review your FOIA letter
+                  Review your {selectedAgency?.requestLaw === "data_practices" ? "data request" : selectedAgency?.requestLaw === "foia" ? "FOIA" : "records request"} letter
                 </h2>
                 <p className="text-muted-foreground mt-1">
                   AI-generated based on your description
@@ -834,6 +897,38 @@ export default function RequestBuilderPage() {
                 </div>
               ) : (
                 <QualityScoreCircle score={qualityScore} />
+              )}
+
+              {/* Broad request warning */}
+              {isBroadRequest && broadRequestWarning && (
+                <div className="border-2 border-warning bg-warning/5 px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="text-warning flex-shrink-0 mt-0.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Broad Request Detected — Likely Delays &amp; Fees
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {broadRequestWarning}
+                      </p>
+                      <p className="text-sm text-primary mt-2 font-medium">
+                        Consider going back to Step 1 to narrow your request with specific keywords, senders, date ranges, or departments.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Letter container */}
@@ -941,7 +1036,7 @@ export default function RequestBuilderPage() {
                   File your request
                 </h2>
                 <p className="text-muted-foreground mt-1">
-                  Choose how you want to submit your FOIA request.
+                  Choose how you want to submit your {selectedAgency?.requestLaw === "data_practices" ? "data request" : "records request"}.
                 </p>
               </div>
 

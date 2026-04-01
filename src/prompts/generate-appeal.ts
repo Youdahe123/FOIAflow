@@ -1,45 +1,62 @@
+import type { RequestLaw } from "@/types";
+
 export function getGenerateAppealPrompt(params: {
   originalRequest: string;
   agencyName: string;
   denialReason: string;
   denialDate: string;
+  requestLaw?: RequestLaw;
+  requestLawName?: string;
 }): string {
-  return `You are a FOIA appeals attorney with deep expertise in administrative law and freedom of information litigation. Your task is to generate a legally precise, persuasive FOIA administrative appeal letter.
+  const isFoia = !params.requestLaw || params.requestLaw === "foia";
+  const isDataPractices = params.requestLaw === "data_practices";
+
+  let lawGuidance: string;
+  if (isFoia) {
+    lawGuidance = `This is a FEDERAL FOIA appeal. Reference the right to appeal under 5 U.S.C. § 552(a)(6)(A)(i). Cite the foreseeable harm standard from the FOIA Improvement Act of 2016. Note the right to judicial review under 5 U.S.C. § 552(a)(4)(B) and the 20-business-day deadline for appeals.`;
+  } else if (isDataPractices) {
+    lawGuidance = `This is an appeal under the Minnesota Government Data Practices Act (Minn. Stat. Ch. 13). DO NOT reference FOIA or 5 U.S.C. § 552. Under Minnesota law, if data is classified as not public, the requester can challenge the classification. Reference Minn. Stat. § 13.03 (access rights) and Minn. Stat. § 13.08 (civil remedies). Note the right to seek an advisory opinion from the Commissioner of the Department of Administration, or to file a complaint with the Office of Administrative Hearings.`;
+  } else {
+    lawGuidance = `This is an appeal under ${params.requestLawName ?? "the applicable state public records law"}. DO NOT reference federal FOIA (5 U.S.C. § 552). Use the correct state statute and appeal procedures.`;
+  }
+
+  const requestTypeLabel = isDataPractices ? "data request" : isFoia ? "FOIA request" : "public records request";
+
+  return `You are a ${isDataPractices ? "government data access" : "FOIA"} appeals attorney with deep expertise in administrative law and ${isDataPractices ? "data practices" : "freedom of information"} litigation. Your task is to generate a legally precise, persuasive appeal letter.
 
 ## Context
 - Agency: ${params.agencyName}
 - Date of Denial: ${params.denialDate}
 - Denial Reason: ${params.denialReason}
 
-## Original FOIA Request
+## Applicable Law
+${lawGuidance}
+
+## Original Request
 ${params.originalRequest}
 
 ## Instructions
-Generate a formal FOIA administrative appeal letter that:
+Generate a formal appeal letter that:
 
-1. **Identifies the appeal**: Clearly states this is an administrative appeal of a FOIA denial, referencing the original request and the denial date.
+1. **Identifies the appeal**: Clearly states this is an administrative appeal of a ${requestTypeLabel} denial, referencing the original request and the denial date.
 
-2. **Cites proper authority**: References the right to appeal under 5 U.S.C. § 552(a)(6)(A)(i) for federal agencies, or the applicable state statute. Cite relevant case law if the denial reason invokes a specific exemption.
+2. **Cites proper authority**: References the correct statute and appeal rights.
 
-3. **Challenges the denial**: Systematically rebuts the stated denial reason. If the agency cited a specific FOIA exemption (e.g., Exemption 5 deliberative process, Exemption 7(A) law enforcement), explain why the exemption was improperly applied or why the agency failed to demonstrate the required elements.
+3. **Challenges the denial**: Systematically rebuts the stated denial reason. Explain why the exemption or classification was improperly applied.
 
-4. **Requests segregable portions**: If full disclosure is arguably exempt, request that the agency release all reasonably segregable, non-exempt portions per 5 U.S.C. § 552(b).
+4. **Requests segregable portions**: Request release of all non-exempt portions that can be reasonably separated.
 
-5. **Invokes the foreseeable harm standard**: Reference the FOIA Improvement Act of 2016 requirement that agencies must demonstrate that disclosure would cause foreseeable harm to a protected interest.
+5. **Notes legal remedies**: Mention the requester's right to seek judicial or administrative review if the appeal is denied.
 
-6. **Notes litigation rights**: Mention the requester's right to seek judicial review in federal district court under 5 U.S.C. § 552(a)(4)(B) if the appeal is denied.
+6. **Uses formal legal language** and professional formatting throughout.
 
-7. **Sets a deadline**: Note the statutory 20-business-day response deadline for appeals.
-
-8. **Uses formal legal language** and professional formatting throughout.
-
-9. Use [DATE] for today's date, [YOUR NAME] for requester name, [YOUR ADDRESS] for address, [YOUR EMAIL] for email.
+7. Use [DATE] for today's date, [YOUR NAME] for requester name, [YOUR ADDRESS] for address, [YOUR EMAIL] for email.
 
 ## Response Format
 You MUST respond with valid JSON in the following format and nothing else:
 {
   "appealLetter": "The full text of the appeal letter",
   "legalBasis": ["Array of legal citations and bases supporting the appeal"],
-  "recommendations": ["Array of strategic recommendations for the requester, such as contacting OGIS, preparing for litigation, or narrowing the request"]
+  "recommendations": ["Array of strategic recommendations for the requester"]
 }`;
 }

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callAI, parseJsonResponse } from "@/lib/ai";
 import { getScoreRequestPrompt } from "@/prompts/score-request";
+import type { RequestLaw } from "@/types";
 
 interface ScoreRequestRequest {
   letterText: string;
+  requestLaw?: RequestLaw;
 }
 
 interface ScoreBreakdown {
@@ -14,6 +16,8 @@ interface ScoreBreakdown {
 
 interface ScoreRequestResponse {
   score: number;
+  isBroadRequest: boolean;
+  broadRequestWarning: string | null;
   breakdown: ScoreBreakdown[];
   overallFeedback: string;
 }
@@ -29,14 +33,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const systemPrompt = getScoreRequestPrompt(body.letterText);
+    const systemPrompt = getScoreRequestPrompt(body.letterText, body.requestLaw);
 
     const response = await callAI({
       system: systemPrompt,
       messages: [
         {
           role: "user",
-          content: "Please evaluate the FOIA request letter provided in the system prompt and return a quality score with detailed breakdown.",
+          content: "Please evaluate the request letter provided in the system prompt and return a quality score with detailed breakdown. Flag if the request is overly broad.",
         },
       ],
       temperature: 0.3,

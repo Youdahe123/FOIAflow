@@ -23,6 +23,12 @@ export type RequestStatus =
 
 export type AgencyLevel = "federal" | "state" | "local";
 
+export type RequestLaw =
+  | "foia"              // Federal FOIA — 5 U.S.C. § 552
+  | "state_foia"        // State-level FOIA equivalents (e.g., CA PRA, NY FOIL, TX PIA)
+  | "data_practices"    // Minnesota Government Data Practices Act (Minn. Stat. Ch. 13)
+  | "open_records";     // Generic state/local open records statutes
+
 export type AnalysisStatus = "pending" | "analyzing" | "completed" | "failed";
 
 export type FollowUpType =
@@ -31,7 +37,7 @@ export type FollowUpType =
   | "appeal"
   | "custom";
 
-export type EntityType = "person" | "organization" | "date" | "location";
+export type EntityType = "person" | "organization" | "date" | "location" | "dollar_amount";
 
 export type AgencyCategory =
   | "law_enforcement"
@@ -95,6 +101,10 @@ export interface Agency {
   abbreviation: string;
   level: AgencyLevel;
   jurisdiction: string;
+  /** The open-records law this agency operates under */
+  requestLaw: RequestLaw;
+  /** Human-readable name of the statute (e.g. "Minnesota Government Data Practices Act") */
+  requestLawName: string;
   foiaEmail: string;
   foiaUrl: string;
   foiaPhone: string | null;
@@ -115,6 +125,8 @@ export interface Redaction {
   description: string;
   exemptionCode: string;
   exemptionName: string;
+  /** Educated guess on why this was redacted (e.g. "privacy", "national security") */
+  likelyReason: string;
 }
 
 export interface Entity {
@@ -127,7 +139,18 @@ export interface AnalysisResult {
   keyFindings: string[];
   redactions: Redaction[];
   entities: Entity[];
-  suggestedFollowUps: string[];
+  /** Detected patterns across names, emails, dates, or redactions */
+  patterns: string[];
+  suggestedFollowUps: FollowUpSuggestion[];
+}
+
+export interface FollowUpSuggestion {
+  /** What to request */
+  description: string;
+  /** Which agency to target */
+  suggestedAgency: string;
+  /** Why this follow-up matters based on the analysis */
+  reasoning: string;
 }
 
 export interface Document {

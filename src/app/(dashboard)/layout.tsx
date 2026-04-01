@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { PatchNotesModal } from "@/components/patch-notes-modal";
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,9 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      {/* One-time patch notes announcement */}
+      <PatchNotesModal />
+
       {/* Desktop sidebar */}
       <Sidebar />
 
