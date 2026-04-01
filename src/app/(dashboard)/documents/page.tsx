@@ -266,7 +266,7 @@ function DocumentCard({
         <div>
           {doc.analysisStatus === "completed" && (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/dashboard/documents/${doc.id}`}>View Analysis</Link>
+              <Link href={`/documents/${doc.id}`}>View Analysis</Link>
             </Button>
           )}
           {doc.analysisStatus === "analyzing" && (

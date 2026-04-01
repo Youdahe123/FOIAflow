@@ -546,7 +546,7 @@ function DocumentNotFound() {
         The document you are looking for does not exist or has been removed.
       </p>
       <Button variant="outline" size="sm" asChild>
-        <Link href="/dashboard/documents">Back to Documents</Link>
+        <Link href="/documents">Back to Documents</Link>
       </Button>
     </div>
   );
@@ -586,7 +586,7 @@ export default function DocumentDetailPage() {
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm">
         <Link
-          href="/dashboard/documents"
+          href="/documents"
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
           Documents
