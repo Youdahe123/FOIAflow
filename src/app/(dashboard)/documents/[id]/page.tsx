@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -52,25 +52,34 @@ function getEntityTypeLabel(type: EntityType): string {
 }
 
 // ---------------------------------------------------------------------------
-// Document Preview (Fake PDF Viewer)
+// Document Preview (Real file viewer)
 // ---------------------------------------------------------------------------
 
 function DocumentPreview({ doc }: { doc: Document }) {
-  // Generate fake content lines with some "redacted" blocks
-  const redactedPages = new Set(
-    doc.analysisResult?.redactions.map((r) => r.page) ?? []
-  );
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState(false);
 
-  // Create fake text lines that simulate a multi-page document
-  const fakePages = useMemo(() => {
-    const pages = [];
-    const totalVisible = Math.min(doc.pageCount, 4);
-    for (let i = 1; i <= totalVisible; i++) {
-      const hasRedaction = redactedPages.has(i);
-      pages.push({ page: i, hasRedaction });
+  useEffect(() => {
+    async function getSignedUrl() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.storage
+          .from("documents")
+          .createSignedUrl(doc.storagePath, 3600); // 1 hour expiry
+        if (error || !data?.signedUrl) {
+          setUrlError(true);
+          return;
+        }
+        setFileUrl(data.signedUrl);
+      } catch {
+        setUrlError(true);
+      }
     }
-    return pages;
-  }, [doc.pageCount, redactedPages]);
+    getSignedUrl();
+  }, [doc.storagePath]);
+
+  const isPdf = doc.fileType === "application/pdf";
+  const isImage = doc.fileType.startsWith("image/");
 
   return (
     <div className="border border-border bg-white flex flex-col min-h-[600px]">
@@ -97,120 +106,76 @@ function DocumentPreview({ doc }: { doc: Document }) {
             {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
           </Badge>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="h-7 w-7 flex items-center justify-center border border-border text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Zoom out"
+        {fileUrl && (
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-7 px-2.5 flex items-center gap-1.5 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <line x1="3" y1="7" x2="11" y2="7" />
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+              <path d="M11 8V12H2V3H6" />
+              <path d="M8 1H13V6" />
+              <path d="M13 1L6 8" />
             </svg>
-          </button>
-          <span className="text-xs text-muted-foreground px-1">100%</span>
-          <button
-            type="button"
-            className="h-7 w-7 flex items-center justify-center border border-border text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Zoom in"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <line x1="7" y1="3" x2="7" y2="11" />
-              <line x1="3" y1="7" x2="11" y2="7" />
-            </svg>
-          </button>
-        </div>
+            Open
+          </a>
+        )}
       </div>
 
-      {/* Fake Document Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-[#F8F8F6]">
-        {fakePages.map((p) => (
-          <div
-            key={p.page}
-            className="bg-white border border-border mx-auto max-w-[560px] p-8 relative"
-          >
-            {/* Page number */}
-            <div className="absolute top-2 right-3 text-xs text-muted-foreground">
-              Page {p.page}
-            </div>
-
-            {/* Simulated text lines */}
-            <div className="space-y-3 mt-4">
-              {/* Title line */}
-              {p.page === 1 && (
-                <div className="h-5 bg-foreground/10 w-3/4 mb-6" />
-              )}
-
-              {/* Content lines */}
-              <div className="h-2.5 bg-foreground/8 w-full" />
-              <div className="h-2.5 bg-foreground/8 w-11/12" />
-              <div className="h-2.5 bg-foreground/8 w-full" />
-              <div className="h-2.5 bg-foreground/8 w-4/5" />
-
-              {p.hasRedaction && (
-                <div className="relative my-4 py-3 px-4 bg-danger/10 border border-danger/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 14 14"
-                      fill="none"
-                      stroke="#CC2222"
-                      strokeWidth="1.5"
-                    >
-                      <rect x="1" y="1" width="12" height="12" />
-                      <line x1="1" y1="1" x2="13" y2="13" />
-                      <line x1="13" y1="1" x2="1" y2="13" />
-                    </svg>
-                    <span className="text-xs font-medium text-danger">
-                      REDACTED
-                    </span>
-                  </div>
-                  <div className="h-2.5 bg-foreground w-full" />
-                  <div className="h-2.5 bg-foreground w-3/4 mt-1" />
-                </div>
-              )}
-
-              <div className="h-2.5 bg-foreground/8 w-full" />
-              <div className="h-2.5 bg-foreground/8 w-10/12" />
-              <div className="h-2.5 bg-foreground/8 w-full" />
-              <div className="h-2.5 bg-foreground/8 w-9/12" />
-
-              {/* Another redaction area for pages with multiple lines */}
-              {p.hasRedaction && p.page > 2 && (
-                <div className="relative my-4 py-3 px-4 bg-danger/10 border border-danger/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 14 14"
-                      fill="none"
-                      stroke="#CC2222"
-                      strokeWidth="1.5"
-                    >
-                      <rect x="1" y="1" width="12" height="12" />
-                      <line x1="1" y1="1" x2="13" y2="13" />
-                      <line x1="13" y1="1" x2="1" y2="13" />
-                    </svg>
-                    <span className="text-xs font-medium text-danger">
-                      REDACTED
-                    </span>
-                  </div>
-                  <div className="h-2.5 bg-foreground w-full" />
-                  <div className="h-2.5 bg-foreground w-2/3 mt-1" />
-                </div>
-              )}
-
-              <div className="h-2.5 bg-foreground/8 w-full" />
-              <div className="h-2.5 bg-foreground/8 w-5/6" />
-              <div className="h-2.5 bg-foreground/8 w-full" />
-              <div className="h-2.5 bg-foreground/8 w-7/12" />
-            </div>
+      {/* Document Content */}
+      <div className="flex-1 overflow-y-auto bg-[#F8F8F6]">
+        {!fileUrl && !urlError && (
+          <div className="flex items-center justify-center h-full min-h-[500px] text-muted-foreground text-sm">
+            Loading preview...
           </div>
-        ))}
+        )}
 
-        {doc.pageCount > 4 && (
-          <div className="text-center py-4 text-sm text-muted-foreground">
-            + {doc.pageCount - 4} more pages
+        {urlError && (
+          <div className="flex flex-col items-center justify-center h-full min-h-[500px] text-muted-foreground gap-3">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+              <path d="M8 4H24L34 14V36H8V4Z" />
+              <line x1="24" y1="4" x2="24" y2="14" />
+              <line x1="24" y1="14" x2="34" y2="14" />
+            </svg>
+            <p className="text-sm">Unable to load document preview</p>
+          </div>
+        )}
+
+        {fileUrl && isPdf && (
+          <iframe
+            src={fileUrl}
+            className="w-full h-full min-h-[600px]"
+            title={doc.fileName}
+          />
+        )}
+
+        {fileUrl && isImage && (
+          <div className="p-6 flex items-center justify-center">
+            <img
+              src={fileUrl}
+              alt={doc.fileName}
+              className="max-w-full max-h-[700px] object-contain border border-border bg-white"
+            />
+          </div>
+        )}
+
+        {fileUrl && !isPdf && !isImage && (
+          <div className="flex flex-col items-center justify-center h-full min-h-[500px] text-muted-foreground gap-3">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+              <path d="M8 4H24L34 14V36H8V4Z" />
+              <line x1="24" y1="4" x2="24" y2="14" />
+              <line x1="24" y1="14" x2="34" y2="14" />
+            </svg>
+            <p className="text-sm">Preview not available for this file type</p>
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline"
+            >
+              Download file
+            </a>
           </div>
         )}
       </div>

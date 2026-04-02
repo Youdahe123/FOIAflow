@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         fileType,
         fileSize,
         storagePath,
+        pageCount: body.pageCount ?? null,
       },
       include: { request: { select: { title: true } } },
     });

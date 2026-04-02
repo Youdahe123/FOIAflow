@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { PDFDocument } from "pdf-lib";
 import type { Request, Document, Activity } from "@/types";
 
 // ── Requests ─────────────────────────────────────────────────────────
@@ -92,6 +93,23 @@ export async function deleteRequest(id: string): Promise<boolean> {
 
 // ── Documents ────────────────────────────────────────────────────────
 
+async function extractPageCount(file: File): Promise<number> {
+  if (file.type === "application/pdf") {
+    try {
+      const buffer = await file.arrayBuffer();
+      const pdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      return pdf.getPageCount();
+    } catch {
+      return 0;
+    }
+  }
+  // Images are always 1 page
+  if (file.type.startsWith("image/")) {
+    return 1;
+  }
+  return 0;
+}
+
 export async function uploadDocument(file: File, requestId?: string): Promise<Document | null> {
   // Upload file to Supabase Storage
   const supabase = createClient();
@@ -108,6 +126,9 @@ export async function uploadDocument(file: File, requestId?: string): Promise<Do
     return null;
   }
 
+  // Extract page count from the file
+  const pageCount = await extractPageCount(file);
+
   // Create metadata via API
   const res = await fetch("/api/documents", {
     method: "POST",
@@ -118,6 +139,7 @@ export async function uploadDocument(file: File, requestId?: string): Promise<Do
       fileType: file.type,
       fileSize: file.size,
       storagePath,
+      pageCount,
     }),
   });
 
