@@ -365,8 +365,8 @@ const features = [
     ),
     title: "Agency Finder",
     description:
-      "Search 2,400+ federal, state, and local agencies. Compare compliance ratings and response times.",
-    stat: "2,400+ agencies",
+      "Search 100+ federal, state, and local agencies. Compare compliance ratings and response times.",
+    stat: "100+ agencies",
   },
   {
     icon: (
@@ -818,7 +818,7 @@ export default function HomePage() {
               </div>
               <div className="text-center">
                 <p className="font-heading text-4xl lg:text-5xl mb-2">
-                  <AnimatedCounter target={2400} suffix="+" />
+                  <AnimatedCounter target={100} suffix="+" />
                 </p>
                 <p className="text-sm uppercase tracking-wider opacity-70">
                   Agencies Indexed
