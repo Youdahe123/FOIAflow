@@ -354,6 +354,8 @@ function RequestBuilderContent() {
   const [currentStep, setCurrentStep] = useState(0);
   const [description, setDescription] = useState("");
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+  const [multiSelect, setMultiSelect] = useState(false);
+  const [selectedAgencyIds, setSelectedAgencyIds] = useState<Set<string>>(new Set());
   const [letterText, setLetterText] = useState(SAMPLE_LETTER);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedFilingMethod, setSelectedFilingMethod] = useState<
@@ -374,12 +376,32 @@ function RequestBuilderContent() {
   const [filing, setFiling] = useState(false);
   const [filed, setFiled] = useState(false);
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [bulkResults, setBulkResults] = useState<{
+    sent: number;
+    failed: number;
+    sentFrom?: string;
+    results: { agencyName: string; status: string; email: string }[];
+    skipped: { agencyId: string; reason: string }[];
+  } | null>(null);
+
+  // Google account connection state
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/agencies?limit=200")
       .then((res) => res.json())
       .then((json) => setAgencies(json.data ?? []))
       .catch(() => setAgencies([]));
+
+    // Check if Google/Gmail is connected
+    fetch("/api/google/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setGmailConnected(data.connected);
+        setGmailEmail(data.email ?? null);
+      })
+      .catch(() => {});
   }, []);
 
   // Pre-fill from Document Intel follow-up suggestions
@@ -404,11 +426,52 @@ function RequestBuilderContent() {
   }, [agencySearch, agencyLevelFilter, agencies]);
 
   const selectedAgency = agencies.find((a) => a.id === selectedAgencyId);
+  const selectedAgencies = agencies.filter((a) => selectedAgencyIds.has(a.id));
+
+  // Toggle an agency in multi-select mode
+  function toggleAgencySelection(agencyId: string) {
+    setSelectedAgencyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(agencyId)) {
+        next.delete(agencyId);
+      } else {
+        next.add(agencyId);
+      }
+      return next;
+    });
+  }
+
+  // Customize letter for a specific agency (simple find/replace)
+  function customizeLetterForAgency(baseLetter: string, agency: Agency): string {
+    let letter = baseLetter;
+    if (selectedAgency) {
+      letter = letter.replaceAll(selectedAgency.name, agency.name);
+      if (selectedAgency.mailingAddress && agency.mailingAddress) {
+        letter = letter.replaceAll(selectedAgency.mailingAddress, agency.mailingAddress);
+      }
+      if (selectedAgency.foiaOfficer && agency.foiaOfficer) {
+        letter = letter.replaceAll(selectedAgency.foiaOfficer, agency.foiaOfficer);
+      } else if (selectedAgency.foiaOfficer && !agency.foiaOfficer) {
+        letter = letter.replaceAll(selectedAgency.foiaOfficer, "FOIA Officer");
+      }
+      if (selectedAgency.foiaEmail && agency.foiaEmail) {
+        letter = letter.replaceAll(selectedAgency.foiaEmail, agency.foiaEmail);
+      }
+      // Replace request law name if different
+      if (selectedAgency.requestLawName !== agency.requestLawName) {
+        letter = letter.replaceAll(selectedAgency.requestLawName, agency.requestLawName);
+      }
+    }
+    return letter;
+  }
 
   // Step validation
   const canContinue = (): boolean => {
     if (currentStep === 0) return description.trim().length > 0;
-    if (currentStep === 1) return selectedAgencyId !== null;
+    if (currentStep === 1) {
+      if (multiSelect) return selectedAgencyIds.size > 0;
+      return selectedAgencyId !== null;
+    }
     return true;
   };
 
@@ -526,10 +589,22 @@ function RequestBuilderContent() {
     if (!canContinue() || currentStep >= STEPS.length - 1) return;
 
     // When moving from agency selection to review, generate the letter
-    if (currentStep === 1 && selectedAgency) {
-      setCurrentStep(currentStep + 1);
-      await generateLetter();
-      return;
+    if (currentStep === 1) {
+      // In multi-select mode, set the first selected agency as primary for letter generation
+      if (multiSelect && selectedAgencyIds.size > 0 && !selectedAgencyId) {
+        const firstId = Array.from(selectedAgencyIds)[0];
+        setSelectedAgencyId(firstId);
+      }
+      const primary = multiSelect
+        ? agencies.find((a) => a.id === Array.from(selectedAgencyIds)[0])
+        : selectedAgency;
+      if (primary) {
+        // Ensure selectedAgencyId is set for letter generation
+        if (multiSelect) setSelectedAgencyId(primary.id);
+        setCurrentStep(currentStep + 1);
+        await generateLetter();
+        return;
+      }
     }
 
     setCurrentStep(currentStep + 1);
@@ -541,11 +616,52 @@ function RequestBuilderContent() {
     }
   };
 
-  // File the request to the database
+  // File the request to the database (single or mass)
   async function handleFileRequest() {
     if (!selectedAgency) return;
     setFiling(true);
+    setBulkResults(null);
     try {
+      // Determine email endpoint: Gmail (user's account) or Resend (noreply)
+      const useGmail = gmailConnected && selectedFilingMethod === "email";
+      const bulkEndpoint = useGmail ? "/api/email/gmail-bulk" : "/api/email/bulk";
+      const singleEndpoint = useGmail ? "/api/email/gmail" : "/api/email/send";
+
+      // Mass email: multi-select mode with email filing method
+      if (multiSelect && selectedAgencyIds.size > 1 && selectedFilingMethod === "email") {
+        const items = Array.from(selectedAgencyIds).map((agencyId) => {
+          const agency = agencies.find((a) => a.id === agencyId);
+          if (!agency) return null;
+          const customizedLetter = agencyId === selectedAgency.id
+            ? letterText
+            : customizeLetterForAgency(letterText, agency);
+          return {
+            agencyId,
+            subject: `FOIA Request — ${description.trim().slice(0, 60)}`,
+            letter: customizedLetter,
+          };
+        }).filter(Boolean);
+
+        const res = await fetch(bulkEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items,
+            description,
+            qualityScore,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setBulkResults(data);
+        }
+
+        setFiled(true);
+        return;
+      }
+
+      // Single agency filing
       const title = description.trim().slice(0, 60);
       const result = await createRequest({
         title,
@@ -556,6 +672,19 @@ function RequestBuilderContent() {
         status: "filed",
         qualityScore,
       });
+
+      // Send the email when email method is selected
+      if (selectedFilingMethod === "email" && selectedAgency.foiaEmail) {
+        await fetch(singleEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: selectedAgency.foiaEmail,
+            subject: `FOIA Request — ${title}`,
+            body: letterText,
+          }),
+        });
+      }
 
       if (selectedFilingMethod === "clipboard") {
         await navigator.clipboard.writeText(letterText);
@@ -610,6 +739,8 @@ function RequestBuilderContent() {
     setCurrentStep(0);
     setDescription("");
     setSelectedAgencyId(null);
+    setMultiSelect(false);
+    setSelectedAgencyIds(new Set());
     setLetterText(SAMPLE_LETTER);
     setIsEditing(false);
     setSelectedFilingMethod("email");
@@ -624,6 +755,7 @@ function RequestBuilderContent() {
     setFiled(false);
     setIsBroadRequest(false);
     setBroadRequestWarning(null);
+    setBulkResults(null);
   }
 
   // Build a preview letter based on description for live preview
@@ -745,13 +877,37 @@ function RequestBuilderContent() {
           {/* -------------------------------------------------------------- */}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <div>
-                <h2 className="font-heading text-2xl text-foreground">
-                  Select an agency
-                </h2>
-                <p className="text-muted-foreground mt-1">
-                  Choose the government agency to file your request with.
-                </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-heading text-2xl text-foreground">
+                    {multiSelect ? "Select agencies" : "Select an agency"}
+                  </h2>
+                  <p className="text-muted-foreground mt-1">
+                    {multiSelect
+                      ? "Choose multiple agencies to mass-file your request."
+                      : "Choose the government agency to file your request with."}
+                  </p>
+                </div>
+                {/* Multi-select toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMultiSelect(!multiSelect);
+                    if (!multiSelect && selectedAgencyId) {
+                      setSelectedAgencyIds(new Set([selectedAgencyId]));
+                    } else if (multiSelect) {
+                      setSelectedAgencyIds(new Set());
+                    }
+                  }}
+                  className={cn(
+                    "flex-shrink-0 border px-3 py-1.5 text-xs font-medium transition-colors",
+                    multiSelect
+                      ? "border-primary bg-primary text-white"
+                      : "border-border bg-surface text-foreground hover:border-primary/40",
+                  )}
+                >
+                  {multiSelect ? `Multi (${selectedAgencyIds.size})` : "Select Multiple"}
+                </button>
               </div>
 
               {/* Search */}
@@ -766,7 +922,7 @@ function RequestBuilderContent() {
               </div>
 
               {/* Filter row */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {(
                   [
                     ["all", "All"],
@@ -784,17 +940,60 @@ function RequestBuilderContent() {
                     {label}
                   </Button>
                 ))}
+                {/* Select All / Deselect All in multi mode */}
+                {multiSelect && (
+                  <>
+                    <div className="w-px bg-border" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const ids = new Set(filteredAgencies.map((a) => a.id));
+                        setSelectedAgencyIds(ids);
+                      }}
+                    >
+                      Select All ({filteredAgencies.length})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedAgencyIds(new Set())}
+                    >
+                      Clear
+                    </Button>
+                  </>
+                )}
               </div>
+
+              {/* Selected count banner */}
+              {multiSelect && selectedAgencyIds.size > 0 && (
+                <div className="bg-primary/5 border border-primary/20 px-4 py-2 flex items-center justify-between">
+                  <p className="text-sm text-foreground">
+                    <span className="font-medium">{selectedAgencyIds.size}</span> {selectedAgencyIds.size === 1 ? "agency" : "agencies"} selected
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Letters will be customized for each agency
+                  </p>
+                </div>
+              )}
 
               {/* Agency grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-[480px] overflow-y-auto pr-1">
                 {filteredAgencies.map((agency) => {
-                  const isSelected = selectedAgencyId === agency.id;
+                  const isSelected = multiSelect
+                    ? selectedAgencyIds.has(agency.id)
+                    : selectedAgencyId === agency.id;
                   return (
                     <button
                       key={agency.id}
                       type="button"
-                      onClick={() => setSelectedAgencyId(agency.id)}
+                      onClick={() => {
+                        if (multiSelect) {
+                          toggleAgencySelection(agency.id);
+                        } else {
+                          setSelectedAgencyId(agency.id);
+                        }
+                      }}
                       className={cn(
                         "text-left border p-4 transition-colors cursor-pointer",
                         isSelected
@@ -803,9 +1002,25 @@ function RequestBuilderContent() {
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-foreground">
-                          {agency.name}
-                        </p>
+                        <div className="flex items-start gap-2">
+                          {multiSelect && (
+                            <div
+                              className={cn(
+                                "mt-0.5 flex-shrink-0 w-4 h-4 border flex items-center justify-center",
+                                isSelected
+                                  ? "border-primary bg-primary"
+                                  : "border-border bg-white",
+                              )}
+                            >
+                              {isSelected && (
+                                <CheckIcon className="h-3 w-3 text-white" />
+                              )}
+                            </div>
+                          )}
+                          <p className="text-sm font-medium text-foreground">
+                            {agency.name}
+                          </p>
+                        </div>
                         <Badge variant="outline" size="sm">
                           {agency.abbreviation}
                         </Badge>
@@ -876,6 +1091,11 @@ function RequestBuilderContent() {
                     ? ` for ${selectedAgency.name}`
                     : ""}
                   . Review and edit as needed.
+                  {multiSelect && selectedAgencyIds.size > 1 && (
+                    <span className="block mt-1 text-primary font-medium">
+                      This letter will be auto-customized for all {selectedAgencyIds.size} selected agencies on filing.
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -1045,10 +1265,32 @@ function RequestBuilderContent() {
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-muted-foreground">Agency</p>
-                      <p className="text-base font-medium text-foreground mt-0.5">
-                        {selectedAgency?.name ?? "No agency selected"}
+                      <p className="text-sm text-muted-foreground">
+                        {multiSelect && selectedAgencyIds.size > 1 ? "Agencies" : "Agency"}
                       </p>
+                      {multiSelect && selectedAgencyIds.size > 1 ? (
+                        <div className="mt-1 space-y-1">
+                          <p className="text-base font-medium text-foreground">
+                            {selectedAgencyIds.size} agencies selected
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {selectedAgencies.slice(0, 8).map((a) => (
+                              <Badge key={a.id} variant="outline" size="sm">
+                                {a.abbreviation || a.name.slice(0, 20)}
+                              </Badge>
+                            ))}
+                            {selectedAgencies.length > 8 && (
+                              <Badge variant="outline" size="sm">
+                                +{selectedAgencies.length - 8} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-base font-medium text-foreground mt-0.5">
+                          {selectedAgency?.name ?? "No agency selected"}
+                        </p>
+                      )}
                     </div>
                     <Badge
                       variant={
@@ -1101,10 +1343,25 @@ function RequestBuilderContent() {
                   <div>
                     <p className="text-sm font-medium text-foreground">
                       Email directly
+                      {gmailConnected && (
+                        <span className="ml-2 text-xs font-normal text-primary">
+                          via Gmail
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Send via encrypted email to the agency&apos;s FOIA office
+                      {gmailConnected
+                        ? `Send from ${gmailEmail} to the agency's FOIA office`
+                        : "Send via FOIAflow to the agency's FOIA office"}
                     </p>
+                    {!gmailConnected && (
+                      <a
+                        href="/settings"
+                        className="text-xs text-primary hover:underline mt-1 inline-block"
+                      >
+                        Connect Google to send from your account
+                      </a>
+                    )}
                   </div>
                 </button>
 
@@ -1174,11 +1431,50 @@ function RequestBuilderContent() {
                     <CheckIcon className="h-8 w-8 text-success" />
                   </div>
                   <h3 className="font-heading text-2xl text-foreground">
-                    Request Filed Successfully
+                    {bulkResults
+                      ? `${bulkResults.sent} Request${bulkResults.sent !== 1 ? "s" : ""} Filed`
+                      : "Request Filed Successfully"}
                   </h3>
                   <p className="text-muted-foreground max-w-md">
-                    Your FOIA request has been filed. You can track its progress in the Tracker.
+                    {bulkResults
+                      ? `Sent to ${bulkResults.sent} ${bulkResults.sent === 1 ? "agency" : "agencies"}${bulkResults.failed > 0 ? `, ${bulkResults.failed} failed` : ""}${bulkResults.sentFrom ? ` from ${bulkResults.sentFrom}` : ""}. Track progress in the Tracker.`
+                      : "Your FOIA request has been filed. You can track its progress in the Tracker."}
                   </p>
+
+                  {/* Bulk results breakdown */}
+                  {bulkResults && bulkResults.results.length > 0 && (
+                    <div className="w-full max-w-md text-left border border-border bg-surface divide-y divide-border max-h-[200px] overflow-y-auto">
+                      {bulkResults.results.map((r, i) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {r.agencyName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {r.email}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={r.status === "sent" ? "success" : "danger"}
+                            size="sm"
+                          >
+                            {r.status}
+                          </Badge>
+                        </div>
+                      ))}
+                      {bulkResults.skipped.map((s, i) => (
+                        <div key={`skip-${i}`} className="flex items-center justify-between px-3 py-2">
+                          <p className="text-sm text-muted-foreground truncate">
+                            {s.reason}
+                          </p>
+                          <Badge variant="warning" size="sm">
+                            skipped
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex gap-3 pt-4">
                     <Link href="/tracker">
                       <Button variant="primary">View in Tracker</Button>
@@ -1199,7 +1495,9 @@ function RequestBuilderContent() {
                     loading={filing}
                     disabled={filing}
                   >
-                    File Request
+                    {multiSelect && selectedAgencyIds.size > 1
+                      ? `File ${selectedAgencyIds.size} Requests`
+                      : "File Request"}
                   </Button>
 
                   {/* Bottom navigation */}
@@ -1270,7 +1568,34 @@ function RequestBuilderContent() {
             </div>
 
             {/* Selected agency info (shown in step 2+) */}
-            {selectedAgency && currentStep >= 1 && (
+            {currentStep >= 1 && multiSelect && selectedAgencies.length > 0 ? (
+              <div className="border border-border bg-surface mt-4 p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">
+                  Selected Agencies ({selectedAgencies.length})
+                </p>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {selectedAgencies.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {a.abbreviation || a.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {a.foiaEmail || "No email"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleAgencySelection(a.id)}
+                        className="text-xs text-muted-foreground hover:text-danger ml-2 flex-shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : selectedAgency && currentStep >= 1 ? (
               <div className="border border-border bg-surface mt-4 p-4">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">
                   Selected Agency
@@ -1291,7 +1616,7 @@ function RequestBuilderContent() {
                   {selectedAgency.foiaEmail}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

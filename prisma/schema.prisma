@@ -22,10 +22,24 @@ model User {
   documents         Document[]
   teamMemberships   TeamMember[]
   activities        Activity[]
+  googleAccount     GoogleAccount?
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+model GoogleAccount {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  googleEmail  String   @map("google_email")
+  accessToken  String   @map("access_token") @db.Text
+  refreshToken String   @map("refresh_token") @db.Text
+  tokenExpiry  DateTime @map("token_expiry")
+  connectedAt  DateTime @default(now()) @map("connected_at")
+
+  @@map("google_accounts")
 }
 
 enum UserRole {
