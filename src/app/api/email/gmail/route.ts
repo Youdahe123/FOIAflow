@@ -66,6 +66,17 @@ export async function POST(request: NextRequest) {
       requestBody: { raw },
     });
 
+    // Create notification for successful send
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        title: "FOIA Request Sent",
+        message: `Your request "${subject}" was sent to ${to}`,
+        type: "success",
+        link: "/tracker",
+      },
+    });
+
     return NextResponse.json({
       success: true,
       messageId: result.data.id,

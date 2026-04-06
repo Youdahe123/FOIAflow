@@ -23,6 +23,7 @@ model User {
   teamMemberships   TeamMember[]
   activities        Activity[]
   googleAccount     GoogleAccount?
+  notifications     Notification[]
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
@@ -227,4 +228,19 @@ model Activity {
   @@index([userId])
   @@index([teamId])
   @@map("activities")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("notifications")
 }

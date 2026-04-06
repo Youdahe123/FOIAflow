@@ -126,6 +126,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create notification
+    const isFiled = (body.status ?? "draft") === "filed";
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        title: isFiled ? "Request Filed" : "Draft Saved",
+        message: isFiled
+          ? `Your FOIA request "${title}" has been filed${created.agency?.name ? ` with ${created.agency.name}` : ""}`
+          : `Draft "${title}" saved`,
+        type: isFiled ? "success" : "info",
+        link: `/tracker`,
+      },
+    });
+
     return NextResponse.json(
       {
         data: {

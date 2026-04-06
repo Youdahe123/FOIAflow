@@ -361,6 +361,7 @@ function RequestBuilderContent() {
   const [selectedFilingMethod, setSelectedFilingMethod] = useState<
     "email" | "pdf" | "clipboard"
   >("email");
+  const [overrideEmail, setOverrideEmail] = useState("");
   const [agencySearch, setAgencySearch] = useState("");
   const [agencyLevelFilter, setAgencyLevelFilter] = useState<
     AgencyLevel | "all"
@@ -674,12 +675,13 @@ function RequestBuilderContent() {
       });
 
       // Send the email when email method is selected
-      if (selectedFilingMethod === "email" && selectedAgency.foiaEmail) {
+      const recipientEmail = overrideEmail.trim() || selectedAgency.foiaEmail;
+      if (selectedFilingMethod === "email" && recipientEmail) {
         await fetch(singleEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            to: selectedAgency.foiaEmail,
+            to: recipientEmail,
             subject: `FOIA Request — ${title}`,
             body: letterText,
           }),
@@ -1364,6 +1366,22 @@ function RequestBuilderContent() {
                     )}
                   </div>
                 </button>
+
+                {/* Editable recipient */}
+                {selectedFilingMethod === "email" && (
+                  <div className="pl-10 space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      To
+                    </label>
+                    <input
+                      type="email"
+                      value={overrideEmail || (multiSelect ? "" : (selectedAgency?.foiaEmail ?? ""))}
+                      onChange={(e) => setOverrideEmail(e.target.value)}
+                      placeholder="Recipient email address"
+                      className="w-full border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                )}
 
                 {/* Download PDF */}
                 <button
