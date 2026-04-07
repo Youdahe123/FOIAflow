@@ -40,8 +40,10 @@ export default function LoginPage() {
     if (data.user) {
       const res = await fetch("/api/auth/ensure-user", { method: "POST" });
       const userData = await res.json();
-      // If user already has a paid subscription, go to dashboard
-      if (userData.subscriptionTier && userData.subscriptionTier !== "FREE_TRIAL") {
+      // Admin goes to admin page
+      if (data.user.email === "admin@foia.com") {
+        router.push("/admin");
+      } else if (userData.subscriptionTier && userData.subscriptionTier !== "FREE_TRIAL") {
         router.push("/dashboard");
       } else {
         router.push(pricingUrl);
