@@ -196,10 +196,7 @@
   border-color: var(--color-primary);
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
-}
+/* Smooth scroll — disabled on landing page to avoid interfering with scroll-driven sections */
 
 /* ── Landing page styles ─────────────────────────────────────────── */
 

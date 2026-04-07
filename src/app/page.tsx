@@ -233,14 +233,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Spacer for fixed hero */}
-      <div style={{ height: "100vh" }} />
-
       {/* ── Problem ─────────────────────────────────────────────────── */}
       <section
         className="lp-problem"
         id="problem"
-        style={{ marginTop: 0 }}
       >
         <div className="lp-prob-img">
           {/* eslint-disable-next-line @next/next/no-img-element */}
