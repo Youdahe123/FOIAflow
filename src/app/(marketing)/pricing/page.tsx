@@ -152,12 +152,7 @@ export default function PricingPage() {
     });
   }, []);
 
-  async function handleSubscribe(planId: string, planName: string) {
-    if (!userId) {
-      window.location.href = "/login";
-      return;
-    }
-
+  async function startCheckout(planId: string, planName: string) {
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -184,6 +179,30 @@ export default function PricingPage() {
       });
     }
   }
+
+  async function handleSubscribe(planId: string, planName: string) {
+    if (!userId) {
+      // Redirect to login with plan info so we can auto-checkout after auth
+      window.location.href = `/login?plan=${encodeURIComponent(planId)}`;
+      return;
+    }
+    startCheckout(planId, planName);
+  }
+
+  // Auto-trigger checkout if redirected back with a plan param after login
+  useEffect(() => {
+    if (!userId) return;
+    const params = new URLSearchParams(window.location.search);
+    const planId = params.get("plan");
+    if (planId) {
+      const plan = pricingPlans.find((p) => p.stripePriceId === planId);
+      if (plan) {
+        // Clean the URL
+        window.history.replaceState({}, "", "/pricing");
+        startCheckout(planId, plan.name);
+      }
+    }
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const plans = pricingPlans.filter((p) => p.id !== "free_trial");
 

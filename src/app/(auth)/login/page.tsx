@@ -13,6 +13,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Preserve plan selection across login redirect
+  const planParam = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("plan")
+    : null;
+  const pricingUrl = planParam ? `/pricing?plan=${encodeURIComponent(planParam)}` : "/pricing";
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -38,20 +44,23 @@ export default function LoginPage() {
       if (userData.subscriptionTier && userData.subscriptionTier !== "FREE_TRIAL") {
         router.push("/dashboard");
       } else {
-        router.push("/pricing");
+        router.push(pricingUrl);
       }
     } else {
-      router.push("/pricing");
+      router.push(pricingUrl);
     }
     router.refresh();
   }
 
   async function handleGoogleLogin() {
     const supabase = createClient();
+    const callbackUrl = planParam
+      ? `${window.location.origin}/callback?next=${encodeURIComponent(pricingUrl)}`
+      : `${window.location.origin}/callback`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/callback`,
+        redirectTo: callbackUrl,
       },
     });
   }

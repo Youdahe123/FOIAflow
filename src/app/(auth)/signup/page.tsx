@@ -15,6 +15,10 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const planParam = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("plan")
+    : null;
+
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -34,7 +38,9 @@ export default function SignupPage() {
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: `${window.location.origin}/callback`,
+        emailRedirectTo: planParam
+          ? `${window.location.origin}/callback?next=${encodeURIComponent(`/pricing?plan=${planParam}`)}`
+          : `${window.location.origin}/callback`,
       },
     });
 
