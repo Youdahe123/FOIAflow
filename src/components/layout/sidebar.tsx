@@ -97,6 +97,18 @@ const accountNav: NavItem[] = [
       </svg>
     ),
   },
+  {
+    label: "Admin",
+    href: "/admin",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <path d="M3 3H10V10H3V3Z" />
+        <path d="M13 3H17V7H13V3Z" />
+        <path d="M13 10H17V17H13V10Z" />
+        <path d="M3 13H10V17H3V13Z" />
+      </svg>
+    ),
+  },
 ];
 
 function NavLink({ item }: { item: NavItem }) {
