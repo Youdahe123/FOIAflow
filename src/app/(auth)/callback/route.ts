@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       // Ensure user exists in Prisma DB
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const isAdmin = user.email === "admin@foia.com";
+        const isAdmin = user.email === "youdaheasfaw@gmail.com";
         const dbUser = await prisma.user.upsert({
           where: { supabaseId: user.id },
           update: isAdmin ? { role: "ADMIN" } : {},

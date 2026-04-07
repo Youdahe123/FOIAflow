@@ -13,7 +13,7 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin = user.email === "admin@foia.com";
+    const isAdmin = user.email === "youdaheasfaw@gmail.com";
     const dbUser = await prisma.user.upsert({
       where: { supabaseId: user.id },
       update: isAdmin ? { role: "ADMIN" } : {},
