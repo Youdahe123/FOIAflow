@@ -136,6 +136,7 @@ export default function HomePage() {
   const [activePanel, setActivePanel] = useState(0);
 
   // Scroll-driven horizontal process section
+  const lastPanelRef = useRef(0);
   const handleScroll = useCallback(() => {
     const outer = processOuterRef.current;
     const track = processTrackRef.current;
@@ -147,7 +148,12 @@ export default function HomePage() {
     const progress = Math.max(0, Math.min(1, scrolled / totalScroll));
     const offset = progress * (processPanels.length - 1) * 100;
     track.style.transform = `translateX(-${offset}vw)`;
-    setActivePanel(Math.round(progress * (processPanels.length - 1)));
+
+    const newPanel = Math.round(progress * (processPanels.length - 1));
+    if (newPanel !== lastPanelRef.current) {
+      lastPanelRef.current = newPanel;
+      setActivePanel(newPanel);
+    }
   }, []);
 
   useEffect(() => {
