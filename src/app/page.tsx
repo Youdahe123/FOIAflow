@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
+import { MarketingHeader } from "@/components/layout/marketing-header";
+import { MarketingFooter } from "@/components/layout/marketing-footer";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /* ==========================================================================
-   Scroll reveal hook
+   Intersection Observer — single fade-up on scroll, nothing more
    ========================================================================== */
 
-function useReveal(threshold = 0.1) {
+function useReveal(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -31,99 +35,228 @@ function useReveal(threshold = 0.1) {
 }
 
 /* ==========================================================================
-   FAQ Item
+   Letter Preview — the hero's interactive element
    ========================================================================== */
 
-function FaqItem({
-  question,
-  answer,
-}: {
-  question: string;
-  answer: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
+function LetterPreview() {
+  const [activeSection, setActiveSection] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const sections = [
+    { label: "Header", accent: "border-l-primary" },
+    { label: "Request", accent: "border-l-success" },
+    { label: "Scope", accent: "border-l-warning" },
+    { label: "Fee Waiver", accent: "border-l-secondary" },
+  ];
+
+  useEffect(() => {
+    if (paused) return;
+    const interval = setInterval(() => {
+      setActiveSection((prev) => (prev + 1) % sections.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [paused, sections.length]);
 
   return (
-    <div className="lp-faq-item">
-      <button className="lp-faq-q" onClick={() => setOpen(!open)}>
-        {question}
-        <span className={`lp-faq-icon ${open ? "open" : ""}`}>+</span>
-      </button>
-      <div className={`lp-faq-a ${open ? "open" : ""}`}>{answer}</div>
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="border border-border bg-surface">
+        {/* Chrome */}
+        <div className="border-b border-border px-5 py-3 flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Generated FOIA Letter
+          </span>
+          <span className="inline-flex items-center bg-success/10 text-success border border-success/20 px-2 py-0.5 text-[11px] font-medium">
+            Quality: 94/100
+          </span>
+        </div>
+
+        {/* Section tabs */}
+        <div className="border-b border-border px-5 flex">
+          {sections.map((section, i) => (
+            <button
+              key={section.label}
+              onClick={() => setActiveSection(i)}
+              className={cn(
+                "px-3.5 py-2.5 text-xs font-medium transition-colors border-b-2",
+                i === activeSection
+                  ? "border-b-primary text-primary"
+                  : "border-b-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="p-5">
+          <div
+            className={cn(
+              "p-4 border-l-2 bg-muted/30 transition-all duration-300",
+              sections[activeSection].accent
+            )}
+          >
+            {activeSection === 0 && (
+              <div className="font-document text-sm text-foreground/80 space-y-1.5">
+                <p className="font-bold">FOIA Officer</p>
+                <p>Chicago Police Department</p>
+                <p>3510 S. Michigan Ave, Chicago, IL 60653</p>
+                <p className="mt-3 font-bold">
+                  Re: Police Use-of-Force Records, 2023-2024
+                </p>
+              </div>
+            )}
+            {activeSection === 1 && (
+              <div className="font-document text-sm text-foreground/80 space-y-2.5">
+                <p>
+                  Pursuant to the Illinois Freedom of Information Act, 5 ILCS
+                  140/1 et seq., I am requesting access to and copies of the
+                  following records:
+                </p>
+                <p className="font-medium text-foreground">
+                  All use-of-force reports, including officer identification,
+                  incident summaries, and disciplinary outcomes for January 1,
+                  2023, through December 31, 2024.
+                </p>
+              </div>
+            )}
+            {activeSection === 2 && (
+              <div className="font-document text-sm text-foreground/80 space-y-2.5">
+                <p className="font-medium mb-2">
+                  This request specifically includes:
+                </p>
+                <ul className="space-y-1">
+                  {[
+                    "Tactical Response Reports (TRRs)",
+                    "Officer identification numbers and assignments",
+                    "Disciplinary investigation outcomes",
+                    "Use-of-force review board decisions",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span className="text-primary mt-0.5 flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {activeSection === 3 && (
+              <div className="font-document text-sm text-foreground/80 space-y-2.5">
+                <p>
+                  I am a representative of the news media as defined under 5
+                  U.S.C. &sect; 552(a)(4)(A)(ii)(II). This request is made as
+                  part of news gathering and not for commercial use.
+                </p>
+                <p className="font-medium text-primary">
+                  I therefore request a waiver of all fees associated with this
+                  request pursuant to 5 ILCS 140/6.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ==========================================================================
-   Process panels data
+   Feature data
    ========================================================================== */
 
-const processPanels = [
+const features = [
   {
-    num: "01",
-    label: "How it works · 01 of 04",
-    h2: (
-      <>
-        Type what
-        <br />
-        you&apos;re <em>investigating.</em>
-      </>
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="8" y1="13" x2="16" y2="13" />
+        <line x1="8" y1="17" x2="16" y2="17" />
+      </svg>
     ),
-    body: "Describe your investigation in plain language. FOIAflow identifies the right agencies, the right contacts, and the optimal request strategy automatically. No forms. No research. Just a sentence.",
-    tag: "Autonomous · Zero manual input required",
+    title: "Request Builder",
+    description:
+      "Describe what you need in plain language. AI generates a legally precise FOIA letter, selects the right agency, and scores it for quality before you file.",
   },
   {
-    num: "02",
-    label: "How it works · 02 of 04",
-    h2: (
-      <>
-        AI drafts and
-        <br />
-        <em>files</em> the request.
-      </>
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <rect x="3" y="3" width="7" height="7" />
+        <rect x="14" y="3" width="7" height="7" />
+        <rect x="3" y="14" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" />
+      </svg>
     ),
-    body: "A legally precise FOIA letter citing 5 USC 552 with journalist fee waiver language, expedited processing justification, pre-loaded exemption defenses, and optimal routing to the correct office. Filed automatically.",
-    tag: "Auto-file · Auto-route · Auto-fee-waiver",
+    title: "Request Tracker",
+    description:
+      "Kanban board and list views with statutory deadline tracking. Automatic reminders before deadlines hit. Full pipeline analytics.",
   },
   {
-    num: "03",
-    label: "How it works · 03 of 04",
-    h2: (
-      <>
-        The agent follows
-        <br />
-        up <em>relentlessly.</em>
-      </>
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+        <line x1="9" y1="9" x2="15" y2="9" />
+        <line x1="9" y1="13" x2="13" y2="13" />
+      </svg>
     ),
-    body: "Follow-ups at day 20, 40, and 60. Legal pressure letters when agencies miss their deadline. Automatic appeals the moment a denial arrives — with AI counter-arguments targeting the specific exemption claimed.",
-    tag: "Auto-followup · Auto-appeal · Auto-escalate",
+    title: "Document Intel",
+    description:
+      "Upload agency responses. AI identifies redactions, maps exemption codes, extracts key entities, and suggests follow-up requests.",
   },
   {
-    num: "04",
-    label: "How it works · 04 of 04",
-    h2: (
-      <>
-        Documents arrive.
-        <br />
-        We <em>read them.</em>
-      </>
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
     ),
-    body: "Upload returned documents and the AI extracts the story — executive summary, newsworthiness score, named entities, redaction detection with legal challenges, and the five most publishable quotes pulled and formatted.",
-    tag: "Auto-analyze · Auto-extract · Auto-challenge-redactions",
+    title: "Agency Finder",
+    description:
+      "Search 100+ federal, state, and local agencies. Compare compliance ratings, average response times, and FOIA officer contacts.",
+  },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
+      </svg>
+    ),
+    title: "Newsroom Hub",
+    description:
+      "Shared workspaces for editorial teams. Collaborative request management, team analytics, and assignment workflows.",
   },
 ];
 
 /* ==========================================================================
-   Ticker data
+   How it works data
    ========================================================================== */
 
-const tickerItems = [
-  "DOJ avg response: 187 days",
-  "ICE denial rate: 62%",
-  "Only 3% of denials are ever appealed — 40% of those win",
-  "94% of agencies miss the legal deadline",
-  "NSA avg response: 72 days",
-  "One nonprofit billed $1.2M for a single records request",
+const steps = [
+  {
+    number: "1",
+    title: "Describe your request",
+    description:
+      "Tell us what records you need in plain language. The AI understands journalistic intent, legal specificity, and which agency holds the records.",
+  },
+  {
+    number: "2",
+    title: "Review the generated letter",
+    description:
+      "Get a legally precise FOIA letter citing the correct statute, auto-routed to the right agency, with a quality score and improvement suggestions.",
+  },
+  {
+    number: "3",
+    title: "Track through resolution",
+    description:
+      "Monitor statutory deadlines, get notified on status changes, analyze responses when they arrive, and auto-generate appeals if needed.",
+  },
 ];
 
 /* ==========================================================================
@@ -131,394 +264,265 @@ const tickerItems = [
    ========================================================================== */
 
 export default function HomePage() {
-  const processOuterRef = useRef<HTMLDivElement>(null);
-  const processTrackRef = useRef<HTMLDivElement>(null);
-  const [activePanel, setActivePanel] = useState(0);
-
-  // Scroll-driven horizontal process section
-  const lastPanelRef = useRef(0);
-  const handleScroll = useCallback(() => {
-    const outer = processOuterRef.current;
-    const track = processTrackRef.current;
-    if (!outer || !track) return;
-
-    const rect = outer.getBoundingClientRect();
-    const totalScroll = outer.offsetHeight - window.innerHeight;
-    const scrolled = -rect.top;
-    const progress = Math.max(0, Math.min(1, scrolled / totalScroll));
-    const offset = progress * (processPanels.length - 1) * 100;
-    track.style.transform = `translateX(-${offset}vw)`;
-
-    const newPanel = Math.round(progress * (processPanels.length - 1));
-    if (newPanel !== lastPanelRef.current) {
-      lastPanelRef.current = newPanel;
-      setActivePanel(newPanel);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
-
-  // Scroll reveal for elements
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("visible");
-        });
-      },
-      { threshold: 0.1 }
-    );
-    document.querySelectorAll(".lp-reveal").forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
+  const featuresReveal = useReveal(0.1);
+  const howReveal = useReveal(0.1);
+  const ctaReveal = useReveal(0.15);
 
   return (
-    <div className="lp">
-      {/* ── Nav ─────────────────────────────────────────────────────── */}
-      <nav className="lp-nav">
-        <Link href="/" className="lp-nav-logo">
-          FOIA<span>flow</span>
-        </Link>
-        <div className="lp-nav-links">
-          <a href="#problem">The Problem</a>
-          <a href="#kill">Why FOIAflow</a>
-          <Link href="/pricing">Pricing</Link>
-          <a href="#faq">FAQ</a>
-          <Link href="/login">Log In</Link>
-          <Link href="/signup" className="lp-nav-cta">
-            Start Now
-          </Link>
-        </div>
-      </nav>
+    <>
+      <MarketingHeader />
+      <main className="flex-1">
+        {/* ── Hero ────────────────────────────────────────────────────── */}
+        <section className="relative py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+              {/* Left */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-widest text-primary mb-6">
+                  AI-Powered FOIA Requests
+                </p>
 
-      {/* ── Ticker ──────────────────────────────────────────────────── */}
-      <div className="lp-ticker">
-        <div className="lp-ticker-inner">
-          {[...tickerItems, ...tickerItems].map((item, i) => (
-            <div key={i} className="lp-tick">
-              <span className="lp-tdot" />
-              {item}
-            </div>
-          ))}
-        </div>
-      </div>
+                <h1 className="font-heading text-4xl sm:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] text-foreground leading-[1.1] mb-6">
+                  File Smarter.{" "}
+                  <br className="hidden sm:block" />
+                  Get Answers{" "}
+                  <span className="text-primary">Faster</span>.
+                </h1>
 
-      {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="lp-hero">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          className="lp-hero-bg"
-          src="/hero-bg.jpg"
-          alt=""
-        />
-        <div className="lp-hero-overlay" />
-        <div className="lp-hero-content">
-          <p className="lp-hero-eyebrow">AI-powered public records automation</p>
-          <h1 className="lp-hero-h1">
-            Unlock
-            <br />
-            <em>the</em>
-            <br />
-            Record.
-          </h1>
-          <p className="lp-hero-sub">
-            The first fully autonomous FOIA agent. Type a topic. We file, follow
-            up, appeal, and analyze the documents — without you lifting a finger.
-          </p>
-          <div className="lp-hero-btns">
-            <Link href="/signup" className="lp-btn-white">
-              Get Started
-            </Link>
-            <a href="#process" className="lp-btn-ghost">
-              See The Workflow
-            </a>
-          </div>
-        </div>
-      </section>
+                <p className="text-base lg:text-lg text-muted-foreground max-w-lg mb-8 leading-relaxed">
+                  FOIAflow generates legally precise FOIA letters, routes them to
+                  the right agency, and tracks every request from filing to
+                  response. Built for investigative journalists.
+                </p>
 
-      {/* ── Problem ─────────────────────────────────────────────────── */}
-      <section
-        className="lp-problem"
-        id="problem"
-      >
-        <div className="lp-prob-img">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hero-bg.jpg" alt="" />
-        </div>
-        <div className="lp-prob-text">
-          <p className="lp-sec-label lp-reveal">The problem</p>
-          <h2 className="lp-sec-h2 lp-reveal">
-            The FOIA process
-            <br />
-            is <em>broken.</em>
-          </h2>
-
-          <div className="lp-pain-item lp-reveal d1">
-            <div className="lp-pain-n">01 :</div>
-            <div className="lp-pain-t">Deadlines slip through the cracks</div>
-            <p className="lp-pain-b">
-              Twenty business days. That&apos;s federal law. 94% of agencies
-              ignore it. Most journalists never notice until the story is cold.
-            </p>
-          </div>
-          <div className="lp-pain-item lp-reveal d2">
-            <div className="lp-pain-n">02 :</div>
-            <div className="lp-pain-t">
-              Only 3% of denials are ever appealed
-            </div>
-            <p className="lp-pain-b">
-              Yet 40% of those appeals succeed. Journalists leave records on the
-              table because no tool automates the pushback.
-            </p>
-          </div>
-          <div className="lp-pain-item lp-reveal d3">
-            <div className="lp-pain-n">03 :</div>
-            <div className="lp-pain-t">
-              Agencies weaponize fees to kill requests
-            </div>
-            <p className="lp-pain-b">
-              One nonprofit was billed $1.2 million. One journalist brought a
-              $2,800 fee down to $29 with the right language. FOIAflow writes
-              that language on every request.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── How It Works (horizontal scroll) ────────────────────────── */}
-      <div
-        className="lp-process-outer"
-        id="process"
-        ref={processOuterRef}
-        style={{ height: "500vh" }}
-      >
-        <div className="lp-process-sticky">
-          <div className="lp-process-track" ref={processTrackRef}>
-            {processPanels.map((panel, i) => (
-              <div key={panel.num} className="lp-process-panel">
-                <div>
-                  <p className="lp-process-label">{panel.label}</p>
-                  <h2 className="lp-process-h2">{panel.h2}</h2>
-                  <p className="lp-process-body">{panel.body}</p>
-                  <div className="lp-process-tag">{panel.tag}</div>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  <Button variant="primary" size="lg" asChild>
+                    <Link href="/signup">
+                      Start Free Trial
+                      <svg className="ml-2 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="lg" asChild>
+                    <Link href="#how-it-works">How It Works</Link>
+                  </Button>
                 </div>
-                <div className="lp-process-bg-num">{panel.num}</div>
-                <div className="lp-process-progress">
-                  {processPanels.map((_, j) => (
-                    <div
-                      key={j}
-                      className={`lp-prog-line ${activePanel === j ? "active" : ""}`}
-                    />
-                  ))}
+
+                <p className="text-xs text-muted-foreground">
+                  7-day free trial &middot; No credit card required
+                </p>
+              </div>
+
+              {/* Right */}
+              <div className="hidden lg:block">
+                <LetterPreview />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Credibility strip ──────────────────────────────────────── */}
+        <div className="border-y border-border bg-muted/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary flex-shrink-0">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <span>100+ agencies indexed</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary flex-shrink-0">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>Statutory deadline tracking</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary flex-shrink-0">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              <span>Federal, state & local coverage</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Features ────────────────────────────────────────────────── */}
+        <section className="py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div
+              ref={featuresReveal.ref}
+              className={cn(
+                "transition-all duration-700 ease-out",
+                featuresReveal.visible
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-6"
+              )}
+            >
+              <div className="max-w-2xl mb-12">
+                <h2 className="font-heading text-3xl lg:text-4xl text-foreground mb-3">
+                  Everything you need to file,{" "}
+                  <br className="hidden lg:block" />
+                  track, and win FOIA requests
+                </h2>
+                <p className="text-muted-foreground">
+                  Five tools in one platform, purpose-built for investigative
+                  journalism.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border border border-border">
+                {features.map((feature) => (
+                  <div
+                    key={feature.title}
+                    className="bg-surface p-6 lg:p-8 group"
+                  >
+                    <div className="text-primary mb-3">
+                      {feature.icon}
+                    </div>
+                    <h3 className="font-heading text-lg text-foreground mb-2">
+                      {feature.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                ))}
+                {/* Fill grid */}
+                <div className="hidden lg:block bg-surface p-6 lg:p-8">
+                  <div className="flex flex-col items-start justify-center h-full">
+                    <p className="font-heading text-lg text-foreground mb-2">
+                      More coming soon
+                    </p>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                      We ship new capabilities every week based on what
+                      journalists actually need.
+                    </p>
+                    <Link
+                      href="/signup"
+                      className="text-sm text-primary font-medium hover:underline"
+                    >
+                      Get early access
+                    </Link>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Quote ───────────────────────────────────────────────────── */}
-      <section className="lp-quote-sec">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="lp-quote-bg" src="/hero-bg.jpg" alt="" />
-        <div className="lp-quote-overlay" />
-        <div className="lp-quote-content lp-reveal">
-          <p className="lp-pull-q">
-            &ldquo;I filed 47 FOIA requests last year. I tracked them in a
-            Google Sheet{" "}
-            <strong>I hated and barely understood.</strong>&rdquo;
-          </p>
-          <p className="lp-pull-attr">
-            — Investigative reporter, major US daily
-          </p>
-        </div>
-      </section>
-
-      {/* ── Why FOIAflow ────────────────────────────────────────────── */}
-      <section className="lp-kill" id="kill">
-        <div className="lp-kill-left">
-          <div className="lp-kill-badge lp-reveal">Why FOIAflow</div>
-          <h2 className="lp-kill-h lp-reveal">
-            Other tools help you file.
-            <br />
-            We <em>fight for you.</em>
-          </h2>
-          <p className="lp-kill-body lp-reveal">
-            Existing tools are filing services. FOIAflow is an autonomous agent
-            that files, follows up, appeals denials, negotiates fees, and
-            analyzes every document — at a flat monthly rate.
-          </p>
-          <Link href="/signup" className="lp-btn-white lp-reveal" style={{ alignSelf: "flex-start" }}>
-            Start Free Trial
-          </Link>
-        </div>
-        <div className="lp-kill-right">
-          <div className="lp-kill-stat lp-reveal d1">
-            <div className="lp-kill-num">40%</div>
-            <div>
-              <div className="lp-kill-stat-label">The appeal gap</div>
-              <p className="lp-kill-stat-body">
-                of FOIA appeals succeed — but only 3% are ever filed. FOIAflow
-                appeals every denial automatically the moment it arrives.
-              </p>
             </div>
           </div>
-          <div className="lp-kill-stat lp-reveal d2">
-            <div className="lp-kill-num">$29</div>
-            <div>
-              <div className="lp-kill-stat-label">The fee gap</div>
-              <p className="lp-kill-stat-body">
-                One Bloomberg reporter brought a $2,800 fee down to $29 with the
-                right language. FOIAflow adds that language to every single
-                request.
-              </p>
+        </section>
+
+        {/* ── How It Works ────────────────────────────────────────────── */}
+        <section
+          id="how-it-works"
+          className="py-20 lg:py-28 bg-surface border-y border-border"
+        >
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div
+              ref={howReveal.ref}
+              className={cn(
+                "transition-all duration-700 ease-out",
+                howReveal.visible
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-6"
+              )}
+            >
+              <div className="max-w-2xl mb-14">
+                <h2 className="font-heading text-3xl lg:text-4xl text-foreground mb-3">
+                  From question to filed request{" "}
+                  <br className="hidden lg:block" />
+                  in under five minutes
+                </h2>
+                <p className="text-muted-foreground">
+                  Three steps. No legal expertise required.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-px bg-transparent lg:bg-border lg:border lg:border-border">
+                {steps.map((step, i) => (
+                  <div key={step.number} className="bg-background lg:bg-surface p-0 lg:p-8">
+                    {/* Mobile: timeline connector */}
+                    <div className="flex items-start gap-5 lg:block">
+                      <div className="flex flex-col items-center lg:hidden">
+                        <div className="w-8 h-8 flex items-center justify-center bg-primary text-white text-sm font-medium flex-shrink-0">
+                          {step.number}
+                        </div>
+                        {i < steps.length - 1 && (
+                          <div className="w-px h-full bg-border min-h-[60px]" />
+                        )}
+                      </div>
+
+                      <div className={cn("pb-8 lg:pb-0", i === steps.length - 1 && "pb-0")}>
+                        {/* Desktop: number */}
+                        <span className="hidden lg:block font-heading text-4xl text-border mb-4">
+                          {step.number.padStart(2, "0")}
+                        </span>
+                        <h3 className="font-heading text-lg text-foreground mb-2">
+                          {step.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="lp-kill-stat lp-reveal d3">
-            <div className="lp-kill-num">94%</div>
-            <div>
-              <div className="lp-kill-stat-label">Agencies miss deadlines</div>
-              <p className="lp-kill-stat-body">
-                Federal law says 20 business days. Almost no one complies.
-                FOIAflow sends automated follow-ups and legal pressure letters on
-                every missed deadline.
+        </section>
+
+        {/* ── Pull quote ──────────────────────────────────────────────── */}
+        <section className="py-16 lg:py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="mx-auto mb-6 text-border">
+              <path d="M10 11H6C6 7.686 8.686 5 12 5V3C7.582 3 4 6.582 4 11V19H10V11ZM22 11H18C18 7.686 20.686 5 24 5V3C19.582 3 16 6.582 16 11V19H22V11Z" fill="currentColor" />
+            </svg>
+            <blockquote className="font-heading text-2xl lg:text-3xl text-foreground leading-snug mb-6">
+              The difference between a good FOIA request and a great one is
+              knowing the statute, the agency, and the right language. That
+              shouldn&apos;t require a law degree.
+            </blockquote>
+            <p className="text-sm text-muted-foreground uppercase tracking-wider">
+              The premise behind FOIAflow
+            </p>
+          </div>
+        </section>
+
+        {/* ── CTA ─────────────────────────────────────────────────────── */}
+        <section className="border-t border-border bg-surface">
+          <div
+            ref={ctaReveal.ref}
+            className={cn(
+              "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28 transition-all duration-700 ease-out",
+              ctaReveal.visible
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6"
+            )}
+          >
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="font-heading text-3xl lg:text-4xl text-foreground mb-4">
+                Start filing better FOIA requests today
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                Free 7-day trial. Works with federal, state, and local agencies.
+                No credit card required.
               </p>
+              <div className="flex justify-center gap-3">
+                <Button variant="primary" size="lg" asChild>
+                  <Link href="/signup">
+                    Start Free Trial
+                    <svg className="ml-2 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/pricing">View Pricing</Link>
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── FAQ ─────────────────────────────────────────────────────── */}
-      <section className="lp-faq-sec" id="faq">
-        <div className="lp-faq-inner">
-          <p className="lp-sec-label lp-reveal">FAQ</p>
-          <h2 className="lp-faq-h lp-reveal">
-            Everything you need
-            <br />
-            to know.
-          </h2>
-          <p className="lp-faq-sub lp-reveal">Common questions about FOIAflow.</p>
-
-          <FaqItem
-            question="What exactly does FOIAflow automate?"
-            answer={
-              <>
-                Everything. You type an investigation topic. FOIAflow identifies
-                agencies, drafts a legally precise request with fee waiver
-                language, files it, sends follow-ups at day 20/40/60,
-                auto-drafts and files an appeal the moment a denial arrives, and
-                fully analyzes every document you receive.{" "}
-                <strong>You type a sentence. We do the rest.</strong>
-              </>
-            }
-          />
-          <FaqItem
-            question="How is this different from other FOIA tools?"
-            answer={
-              <>
-                Most tools are filing services — they help you submit requests.{" "}
-                <strong>FOIAflow is an autonomous agent.</strong> We handle the
-                entire lifecycle: filing, follow-ups, appeals, fee negotiation,
-                and document analysis. Flat monthly pricing, unlimited requests.
-              </>
-            }
-          />
-          <FaqItem
-            question="Why do only 3% of denials get appealed?"
-            answer={
-              <>
-                Because appealing is manual, time-consuming, and requires legal
-                knowledge most journalists don&apos;t have. Yet{" "}
-                <strong>40% of those appeals succeed.</strong> FOIAflow pushes
-                back automatically on every denial, targeting the specific legal
-                weakness in whichever exemption the agency cited.
-              </>
-            }
-          />
-          <FaqItem
-            question="What is the fee negotiation feature?"
-            answer={
-              <>
-                Agencies routinely use excessive fee estimates to discourage
-                requests. A Bloomberg reporter proved you can bring a $2,800 fee
-                down to $29 with the right language.{" "}
-                <strong>
-                  FOIAflow automatically appends optimized fee waiver language
-                </strong>{" "}
-                to every request, citing your journalist status, publication, and
-                public interest value.
-              </>
-            }
-          />
-          <FaqItem
-            question="Does FOIAflow cover state and local requests?"
-            answer={
-              <>
-                Yes. FOIAflow covers federal FOIA (5 USC 552) and all 50 state
-                public records laws. Each state has different deadlines,
-                exemptions, and fee structures —{" "}
-                <strong>
-                  FOIAflow automatically adjusts request language and follow-up
-                  timing based on jurisdiction.
-                </strong>
-              </>
-            }
-          />
-          <FaqItem
-            question="What are the pricing tiers?"
-            answer={
-              <>
-                Check our{" "}
-                <Link
-                  href="/pricing"
-                  style={{ color: "#6B0000", textDecoration: "underline" }}
-                >
-                  pricing page
-                </Link>{" "}
-                for current plans. We offer tiers for solo journalists, small
-                newsrooms, and enterprise teams.{" "}
-                <strong>
-                  All plans include unlimited requests and full automation.
-                </strong>
-              </>
-            }
-          />
-        </div>
-      </section>
-
-      {/* ── CTA ─────────────────────────────────────────────────────── */}
-      <section className="lp-cta-sec">
-        <div className="lp-reveal" style={{ maxWidth: 700 }}>
-          <h2 className="lp-cta-h">
-            Start unlocking
-            <br />
-            records today.
-          </h2>
-          <p className="lp-cta-sub">
-            7-day free trial. No credit card required. Full access to every
-            feature from day one.
-          </p>
-          <Link href="/signup" className="lp-cta-btn">
-            Start Free Trial
-          </Link>
-        </div>
-      </section>
-
-      {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer className="lp-footer">
-        <div className="lp-f-logo">FOIAflow</div>
-        <div className="lp-f-links">
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/login">Log In</Link>
-          <Link href="/signup">Sign Up</Link>
-        </div>
-        <div className="lp-f-copy">
-          &copy; {new Date().getFullYear()} FOIAflow. All rights reserved.
-        </div>
-      </footer>
-    </div>
+        </section>
+      </main>
+      <MarketingFooter />
+    </>
   );
 }
