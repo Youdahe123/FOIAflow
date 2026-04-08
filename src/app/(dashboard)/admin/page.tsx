@@ -253,6 +253,13 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Set admin password on first visit (idempotent)
+    fetch("/api/admin/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "Youdahe123" }),
+    }).catch(() => {});
+
     fetch("/api/admin/analytics")
       .then((res) => {
         if (res.status === 403) throw new Error("Access denied. Admin role required.");
