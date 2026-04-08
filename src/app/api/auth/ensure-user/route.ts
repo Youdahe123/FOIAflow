@@ -26,7 +26,7 @@ export async function POST() {
       },
     });
 
-    return NextResponse.json({ ok: true, subscriptionTier: dbUser.subscriptionTier });
+    return NextResponse.json({ ok: true, subscriptionTier: dbUser.subscriptionTier, role: dbUser.role });
   } catch (error) {
     console.error("Ensure user error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

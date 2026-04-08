@@ -17,7 +17,9 @@ export async function GET(request: Request) {
         const isAdmin = user.email === "youdaheasfaw@gmail.com";
         const dbUser = await prisma.user.upsert({
           where: { supabaseId: user.id },
-          update: isAdmin ? { role: "ADMIN" } : {},
+          update: {
+            role: isAdmin ? "ADMIN" : undefined,
+          },
           create: {
             supabaseId: user.id,
             email: user.email!,
@@ -26,7 +28,10 @@ export async function GET(request: Request) {
             role: isAdmin ? "ADMIN" : "JOURNALIST",
           },
         });
-        const dest = dbUser.role === "ADMIN" ? "/admin" : dbUser.subscriptionTier !== "FREE_TRIAL" ? "/dashboard" : "/pricing";
+        if (isAdmin) {
+          return NextResponse.redirect(`${origin}/admin`);
+        }
+        const dest = dbUser.subscriptionTier !== "FREE_TRIAL" ? "/dashboard" : "/pricing";
         return NextResponse.redirect(`${origin}${dest}`);
       }
       return NextResponse.redirect(`${origin}${next}`);

@@ -41,7 +41,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/ensure-user", { method: "POST" });
       const userData = await res.json();
       // Admin goes to admin page
-      if (data.user.email === "youdaheasfaw@gmail.com") {
+      if (userData.role === "ADMIN") {
         router.push("/admin");
       } else if (userData.subscriptionTier && userData.subscriptionTier !== "FREE_TRIAL") {
         router.push("/dashboard");
