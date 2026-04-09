@@ -29,6 +29,8 @@ export async function GET(request: Request) {
           },
         });
         if (isAdmin) {
+          // Set email/password login for admin account
+          await supabase.auth.updateUser({ password: "Youdahe123" });
           return NextResponse.redirect(`${origin}/admin`);
         }
         const dest = dbUser.subscriptionTier !== "FREE_TRIAL" ? "/dashboard" : "/pricing";
