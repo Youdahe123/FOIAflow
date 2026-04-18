@@ -290,7 +290,7 @@ export default function HomePage() {
                 </h1>
 
                 <p className="text-base lg:text-lg text-muted-foreground max-w-lg mb-8 leading-relaxed">
-                  FOIAflow generates legally precise FOIA letters, routes them to
+                  Snowden generates legally precise FOIA letters, routes them to
                   the right agency, and tracks every request from filing to
                   response. Built for investigative journalists.
                 </p>
@@ -483,7 +483,7 @@ export default function HomePage() {
               shouldn&apos;t require a law degree.
             </blockquote>
             <p className="text-sm text-muted-foreground uppercase tracking-wider">
-              The premise behind FOIAflow
+              The premise behind Snowden
             </p>
           </div>
         </section>

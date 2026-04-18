@@ -12,7 +12,7 @@ export default function AuthLayout({
         <div className="mb-8 text-center">
           <Link href="/">
             <span className="font-heading text-3xl text-primary tracking-tight">
-              FOIAflow
+              Snowden
             </span>
           </Link>
         </div>

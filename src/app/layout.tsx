@@ -24,7 +24,7 @@ const libre = Libre_Baskerville({
 });
 
 export const metadata: Metadata = {
-  title: "FOIAflow — AI-Powered FOIA Requests",
+  title: "Snowden — AI-Powered FOIA Requests",
   description:
     "Generate legally precise FOIA letters, auto-route to agencies, and track your requests with AI.",
 };

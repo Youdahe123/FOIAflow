@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 // -- Bump this version string whenever you ship new patch notes. -----------
 // The modal will re-appear once for each new version.
 const PATCH_VERSION = "2.0.0";
-const STORAGE_KEY = "foiaflow_patch_notes_seen";
+const STORAGE_KEY = "Snowden_patch_notes_seen";
 
 interface PatchSection {
   title: string;
@@ -90,7 +90,7 @@ export function PatchNotesModal() {
 
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <DialogTitle>What&apos;s New in FOIAflow</DialogTitle>
+            <DialogTitle>What&apos;s New in Snowden</DialogTitle>
             <Badge variant="primary" size="sm">v{PATCH_VERSION}</Badge>
           </div>
           <DialogDescription>

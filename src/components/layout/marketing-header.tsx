@@ -19,7 +19,7 @@ export function MarketingHeader() {
         {/* Logo */}
         <Link href="/" className="flex-shrink-0">
           <span className="font-heading text-2xl text-primary tracking-tight">
-            FOIAflow
+            Snowden
           </span>
         </Link>
 

@@ -223,7 +223,7 @@ export default function PricingPage() {
 
         <div className="bg-accent border border-border p-4 text-center mb-16 flex flex-col sm:flex-row items-center justify-center gap-4">
           <p className="text-foreground font-medium">
-            Try FOIAflow free for 7 days. Card required to start trial.
+            Try Snowden free for 7 days. Card required to start trial.
           </p>
           <Button variant="primary" size="sm" asChild>
             <Link href="/signup">Start Free Trial</Link>

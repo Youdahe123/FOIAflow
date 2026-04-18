@@ -1354,7 +1354,7 @@ function RequestBuilderContent() {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {gmailConnected
                         ? `Send from ${gmailEmail} to the agency's FOIA office`
-                        : "Send via FOIAflow to the agency's FOIA office"}
+                        : "Send via Snowden to the agency's FOIA office"}
                     </p>
                     {!gmailConnected && (
                       <a

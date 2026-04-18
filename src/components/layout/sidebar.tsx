@@ -172,7 +172,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center px-6 border-b border-border">
         <Link href="/dashboard">
           <span className="font-heading text-2xl text-primary tracking-tight">
-            FOIAflow
+            Snowden
           </span>
         </Link>
       </div>

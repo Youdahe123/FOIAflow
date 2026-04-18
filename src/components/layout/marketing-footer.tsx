@@ -74,7 +74,7 @@ export function MarketingFooter() {
         {/* Bottom bar */}
         <div className="mt-12 border-t border-white/10 pt-8">
           <p className="text-xs text-white/40">
-            &copy; {new Date().getFullYear()} FOIAflow. All rights reserved.
+            &copy; {new Date().getFullYear()} Snowden. All rights reserved.
           </p>
         </div>
       </div>

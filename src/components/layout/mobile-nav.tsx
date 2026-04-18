@@ -62,7 +62,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           <Link href="/dashboard" onClick={onClose}>
             <span className="font-heading text-2xl text-primary tracking-tight">
-              FOIAflow
+              Snowden
             </span>
           </Link>
           <button

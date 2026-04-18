@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     const resend = getResend();
     const { data, error } = await resend.emails.send({
-      from: from ?? "FOIAflow <noreply@foiaflow.app>",
+      from: from ?? "Snowden <noreply@Snowden.app>",
       to: [to],
       subject,
       text: body,

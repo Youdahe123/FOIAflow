@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       }
 
       emailPayloads.push({
-        from: "FOIAflow <noreply@foiaflow.app>",
+        from: "Snowden <noreply@Snowden.app>",
         to: [agency.foiaEmail],
         subject: item.subject,
         text: item.letter,

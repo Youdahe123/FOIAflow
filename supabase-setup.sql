@@ -1,4 +1,4 @@
--- FOIAflow Database Setup
+-- Snowden Database Setup
 -- Run this in your Supabase SQL Editor:
 -- https://supabase.com/dashboard/project/tmepkdippikertlftctl/sql/new
 
