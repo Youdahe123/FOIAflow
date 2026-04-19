@@ -10,54 +10,40 @@ import { Button } from "@/components/ui/button";
 import type { Request, RequestStatus } from "@/types";
 
 const ALL_STATUSES: RequestStatus[] = [
-  "draft",
-  "ready_to_file",
-  "filed",
-  "acknowledged",
-  "processing",
-  "partial_response",
-  "completed",
-  "denied",
-  "overdue",
-  "appealed",
-  "appeal_pending",
+  "draft", "ready_to_file", "filed", "acknowledged", "processing",
+  "partial_response", "completed", "denied", "overdue", "appealed", "appeal_pending",
 ];
 
-// ---------------------------------------------------------------------------
-// Column definitions
-// ---------------------------------------------------------------------------
+const INDUSTRY_CATEGORIES = [
+  "Government & Administration", "Law Enforcement & Justice", "Health & Human Services",
+  "Education", "Finance & Commerce", "Transportation & Infrastructure",
+  "Environment & Natural Resources", "Labor & Employment", "Housing & Community",
+  "Agriculture & Food", "Public Safety & Defense", "Science & Technology",
+  "Arts & Culture", "Regulatory & Licensing", "Social Services"
+] as const;
 
-interface KanbanColumn {
+const LEVELS = ["Federal", "State", "County", "City", "Special District"] as const;
+
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", 
+  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
+  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
+  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+] as const;
+
+interface SnowdenAgency {
   id: string;
-  label: string;
-  statuses: RequestStatus[];
-  accent: string;
-  dotColor: string;
+  name: string;
+  level: typeof LEVELS[number];
+  state: string;
+  industry: typeof INDUSTRY_CATEGORIES[number];
+  governing_law: string;
+  law_citation: string;
+  deadline_days: number;
+  website?: string;
+  email?: string;
 }
-
-const COLUMNS: KanbanColumn[] = [
-  {
-    id: "drafts",
-    label: "Drafts",
-    statuses: ["draft", "ready_to_file"],
-    accent: "border-t-muted-foreground",
-    dotColor: "bg-muted-foreground",
-  },
-  {
-    id: "filed",
-    label: "Filed",
-    statuses: ["filed", "acknowledged"],
-    accent: "border-t-primary",
-    dotColor: "bg-primary",
-  },
-  {
-    id: "in_progress",
-    label: "In Progress",
-    statuses: ["processing"],
-    accent: "border-t-warning",
-    dotColor: "bg-warning",
-  },
-  {
     id: "responded",
     label: "Responded",
     statuses: ["partial_response", "completed"],
