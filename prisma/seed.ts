@@ -49,7 +49,7 @@ async function main() {
     })),
   });
 
-  console.log(`Seeded ${created.count} agencies.`);
+  console.log(`Seeded ${created.count} agencies with Snowden data.`);
 }
 
 main()
