@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, AgencyLevel } from "../src/generated/prisma/client.js";
-import { mockAgencies } from "../src/data/mock-agencies.js";
+import { PrismaClient, AgencyLevel } from "../src/generated/prisma";
+import { mockAgencies } from "../src/data/mock-agencies";
 
 function getPostgresUrl(): string {
   const raw = process.env.DATABASE_URL!;
@@ -19,10 +19,10 @@ const adapter = new PrismaPg(getPostgresUrl());
 const prisma = new PrismaClient({ adapter });
 
 const levelMap: Record<string, AgencyLevel> = {
-  federal: "FEDERAL",
-  state: "STATE",
-  local: "LOCAL",
-  tribal: "TRIBAL",
+  federal: AgencyLevel.FEDERAL,
+  state: AgencyLevel.STATE,
+  local: AgencyLevel.LOCAL,
+  tribal: AgencyLevel.TRIBAL,
 };
 
 async function main() {
