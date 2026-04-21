@@ -18,11 +18,11 @@ function getPostgresUrl(): string {
 const adapter = new PrismaPg(getPostgresUrl());
 const prisma = new PrismaClient({ adapter });
 
-const levelMap: Record<string, AgencyLevel> = {
-  federal: AgencyLevel.FEDERAL,
-  state: AgencyLevel.STATE,
-  local: AgencyLevel.LOCAL,
-  tribal: AgencyLevel.TRIBAL,
+const levelMap: Record<string, string> = {
+  federal: "FEDERAL",
+  state: "STATE",
+  local: "LOCAL",
+  tribal: "TRIBAL",
 };
 
 async function main() {
@@ -35,7 +35,7 @@ async function main() {
     data: mockAgencies.map((agency) => ({
       name: agency.name,
       abbreviation: agency.abbreviation || null,
-      level: levelMap[agency.level] ?? "FEDERAL",
+     level: (levelMap[agency.level.toLowerCase()] || "FEDERAL") as any,
       jurisdiction: agency.jurisdiction || null,
       foiaEmail: agency.foiaEmail || null,
       foiaUrl: agency.foiaUrl || null,
