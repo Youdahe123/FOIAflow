@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, AgencyLevel } from "../src/generated/prisma";
+import { PrismaClient, AgencyLevel } from "../src/generated/prisma/client";
 import { mockAgencies } from "../src/data/mock-agencies";
 
 function getPostgresUrl(): string {
