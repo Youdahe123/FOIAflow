@@ -14,11 +14,12 @@ const config: Config = {
         sans: ["'DM Sans'", "system-ui", "sans-serif"],
       },
       colors: {
-        ink: "#0F0F0F",
-        newsprint: "#F5F0E8",
-        rule: "#1A1A1A",
-        accent: "#8B1A1A",
-        muted: "#6B6355",
+        ink: "#000000",        // True black for that sharp print feel
+        newsprint: "#F9F7F2",  // The exact off-white/cream paper color they use
+        rule: "#E5E5E5",       // Light grey for those thin divider lines
+        accent: "#E31212",     // The "The Nation" signature red
+        muted: "#666666",      // Professional grey for dates and secondary text
+
         cluster: "#2C1810",
       },
       fontSize: {
