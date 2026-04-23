@@ -8,26 +8,17 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        serif: ["'Playfair Display'", "Georgia", "serif"],
-        serifBody: ["'EB Garamond'", "Georgia", "serif"],
-        sans: ["'DM Sans'", "system-ui", "sans-serif"],
-      },
       colors: {
-        ink: "#000000",        // True black for that sharp print feel
-        newsprint: "#F9F7F2",  // The exact off-white/cream paper color they use
-        rule: "#E5E5E5",       // Light grey for those thin divider lines
-        accent: "#E31212",     // The "The Nation" signature red
-        muted: "#666666",      // Professional grey for dates and secondary text
-
-        cluster: "#2C1810",
+        newsprint: "#f4f4f2",
+        ink: "#1a1a1a",
+        accent: "#e31212",
       },
       fontSize: {
         "headline-xl": ["2.75rem", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
-        "headline-lg": ["2rem",    { lineHeight: "1.1",  letterSpacing: "-0.015em" }],
-        "headline-md": ["1.375rem",{ lineHeight: "1.2",  letterSpacing: "-0.01em" }],
-        "headline-sm": ["1.1rem",  { lineHeight: "1.25", letterSpacing: "-0.005em" }],
-        "byline":      ["0.7rem",  { lineHeight: "1.4",  letterSpacing: "0.08em" }],
+        "headline-lg": ["2rem", { lineHeight: "1.1", letterSpacing: "-0.015em" }],
+        "headline-md": ["1.375rem", { lineHeight: "1.2", letterSpacing: "-0.01em" }],
+        "headline-sm": ["1.1rem", { lineHeight: "1.25", letterSpacing: "-0.005em" }],
+        "byline": ["0.7rem", { lineHeight: "1.4", letterSpacing: "0.08em" }],
       },
       borderColor: {
         rule: "#1A1A1A",
