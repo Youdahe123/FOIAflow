@@ -1,8 +1,6 @@
 // src/app/api/scout/route.ts
 import { NextResponse } from "next/server";
-import axios from "axios";
-import * as cheerio from "cheerio";
-import Groq from 'groq-sdk';
+import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
 const RED_FLAGS = [
@@ -17,125 +15,33 @@ const RED_FLAGS = [
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const TARGETS = [
+  { name: "Missing & Endangered Persons - NamUs", url: "https://www.namus.gov/News" },
+  { name: "UN OCHA Humanitarian Alerts", url: "https://reliefweb.int/updates?source=OCHA" },
+  { name: "Committee to Protect Journalists", url: "https://cpj.org/news/" },
+  { name: "Genocide Watch", url: "https://www.genocidewatch.com/alerts" },
+  { name: "ACLU Press Releases", url: "https://www.aclu.org/press-releases" },
+  { name: "EFF Deeplinks", url: "https://www.eff.org/deeplinks" },
+  { name: "Missing Scientists - Science Integrity Digest", url: "https://scienceintegritydigest.com" },
+  { name: "The Intercept", url: "https://theintercept.com/news/" },
+  { name: "ProPublica Investigations", url: "https://www.propublica.org/investigations" },
+  { name: "Global Voices", url: "https://globalvoices.org/world/" },
+  { name: "Human Rights Watch", url: "https://www.hrw.org/news" },
+  { name: "MN Reformer", url: "https://minnesotareformer.com/briefs/" },
+];
+
 interface ScoutResult {
   title: string;
   summary: string;
   category: string;
   risk_score: number;
-}
-
-async function scrapeNotices(): Promise<{ title: string; text: string; url: string }[]> {
-  const TARGETS = [
-    { name: "Missing & Endangered Persons - NamUs", url: "https://www.namus.gov/News" },
-    { name: "UN OCHA Humanitarian Alerts", url: "https://reliefweb.int/updates?source=OCHA" },
-    { name: "Committee to Protect Journalists", url: "https://cpj.org/news/" },
-    { name: "Genocide Watch", url: "https://www.genocidewatch.com/alerts" },
-    { name: "ACLU Press Releases", url: "https://www.aclu.org/press-releases" },
-    { name: "EFF Deeplinks", url: "https://www.eff.org/deeplinks" },
-    { name: "Missing Scientists - Science Integrity Digest", url: "https://scienceintegritydigest.com" },
-    { name: "The Intercept", url: "https://theintercept.com/news/" },
-    { name: "ProPublica Investigations", url: "https://www.propublica.org/investigations" },
-    { name: "Global Voices", url: "https://globalvoices.org/world/" },
-    { name: "Human Rights Watch", url: "https://www.hrw.org/news" },
-    { name: "MN Reformer", url: "https://minnesotareformer.com/briefs/" },
-  ];
-
-  const allNotices: { title: string; text: string; url: string }[] = [];
-
-  for (const target of TARGETS) {
-    try {
-      console.log(`[Scout] Harvesting from: ${target.name}`);
-      const { data: html } = await axios.get(target.url, { 
-        headers: { "User-Agent": "Mozilla/5.0 (SnowdenScout/1.0)" }, 
-        timeout: 10000 
-      });
-
-      const $ = cheerio.load(html);
-
-      // This logic grabs headlines and links across different site layouts
-      $("a, h2, h3").each((_, el) => {
-        const title = $(el).text().trim();
-        const href = $(el).attr("href") || "";
-        
-        // Filter for potential headlines (not too short, not too long)
-        if (title.length > 25 && title.length < 300) {
-          allNotices.push({
-            title,
-            text: title,
-            url: href.startsWith("http") ? href : `${new URL(target.url).origin}${href}`,
-          });
-        }
-      });
-      
-      // Wait 1 second between sites to avoid getting blocked
-      await delay(1000); 
-    } catch (err: any) {
-      console.error(`[Scout] Failed to harvest ${target.name}:`, err.message);
-    }
-  }
-
-  return allNotices;
-}
-
-function sift(notices: { title: string; text: string; url: string }[]) {
-  return notices.filter(({ text }) => {
-    const lower = text.toLowerCase();
-    return RED_FLAGS.some((flag) => lower.includes(flag));
-  });
-}
-
-async function analyse(notice: { title: string; text: string; url: string }): Promise<ScoutResult | null> {
-  try {
-    const result = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [{ role: 'user', content: `You are an aggressive investigative journalist editor at a publication like The Intercept.
-
-Your job is to find stories worth investigating — not just confirmed scandals, but LEADS and SIGNALS that deserve more attention.
-
-Here is a headline/notice:
-Title: ${notice.title}
-Source: ${notice.url}
-
-ALWAYS return JSON unless this is literally a job posting, sports score, weather report, or advertisement. 
-
-For ANY of the following, return JSON:
-- Missing or disappeared people, scientists, journalists, activists
-- Government or corporate actions affecting vulnerable populations  
-- Humanitarian crises, displacement, conflict
-- Surveillance, data collection, privacy violations
-- Unexplained deaths, detentions, silencing
-- Policy changes with little public attention
-- Anything involving genocide, ethnic cleansing, war crimes
-- Environmental destruction or cover-ups
-- Whistleblowers or retaliation against truth-tellers
-
-Return ONLY this JSON, no other text:
-{
-  "title": "punchy headline under 12 words",
-  "summary": "one sentence why this matters to the public",
-  "category": "SURVEILLANCE | HUMANITARIAN | MISSING | POLICY | ENVIRONMENT | CONTRACTS | OTHER",
-  "risk_score": <1-10, be generous, default to 6 if unsure>
-}
-
-Only respond NOT_NEWSWORTHY for job listings, sports, weather, and ads.` }],
-      max_tokens: 512,
-    });
-
-    const raw = result.choices[0].message.content?.trim() ?? '';
-    if (raw === "NOT_NEWSWORTHY") return null;
-
-    return JSON.parse(raw) as ScoutResult;
-  } catch (err) {
-    console.error("[Scout] Analyse error:", err);
-    return null;
-  }
 }
 
 async function publish(result: ScoutResult, sourceUrl: string) {
@@ -146,8 +52,7 @@ async function publish(result: ScoutResult, sourceUrl: string) {
       category:    result.category,
       risk_score:  result.risk_score,
       source_url:  sourceUrl,
-      jurisdiction: "Minneapolis, MN",
-      trend_score: "emerging",
+      affected_area: "Global",
       discovered_at: new Date().toISOString(),
     },
     { onConflict: "title" }
@@ -155,46 +60,135 @@ async function publish(result: ScoutResult, sourceUrl: string) {
   if (error) throw error;
 }
 
+async function* streamAgentEvents(sessionId: string) {
+  let hasMore = true;
+  
+  while (hasMore) {
+    const response = await anthropic.beta.sessions.events.list(sessionId);
+    
+    // Response is an array-like object with data property
+    const events = Array.isArray(response) ? response : (response as any).data || [];
+    
+    for (const event of events) {
+      yield event;
+      
+      // Check if agent is done processing
+      if ((event as any).type === 'status.message' && (event as any).status === 'completed') {
+        hasMore = false;
+      }
+    }
+    
+    if (hasMore) {
+      await delay(1000);
+    }
+  }
+}
+
 export async function GET() {
+  const results: ScoutResult[] = [];
+  
   try {
-    console.log("[Scout] Starting harvest...");
+    console.log("[Scout] Starting Managed Agent harvest...");
 
-    const notices  = await scrapeNotices();
-    console.log(`[Scout] Raw notices found: ${notices.length}`);
+    // 1. Create the Investigative Agent
+    const agent = await anthropic.beta.agents.create({
+      name: "Snowden Investigative Scout",
+      model: "claude-3-5-sonnet-latest",
+      system: `You are an elite investigative journalist with expertise in finding unreported stories. 
+      
+Your mission: Visit the provided URLs using web_fetch and web_search tools. For each source:
+1. Fetch and analyze the content
+2. Identify high-impact stories related to: missing persons, genocide, surveillance, human rights, environmental destruction, whistleblowers, or corporate/government misconduct
+3. For EACH compelling story found, output a separate JSON object with this exact structure:
+{
+  "title": "punchy headline",
+  "summary": "one sentence why this matters",
+  "category": "SURVEILLANCE | HUMANITARIAN | MISSING | POLICY | ENVIRONMENT | CONTRACTS | OTHER",
+  "risk_score": <number 1-10>
+}
 
-    const flagged  = sift(notices);
-    console.log(`[Scout] Red-flag hits: ${flagged.length}`);
+Be aggressive - default to 6+ for anything with public impact. Separate each JSON object with a newline.`,
+      tools: [{ type: "agent_toolset_20260401" }],
+    });
 
-    let scoops = 0;
-    const results: ScoutResult[] = [];
+    // 2. Create the Session (environment_id is optional)
+    const session = await anthropic.beta.sessions.create({
+      agent: { type: "agent", id: agent.id, version: agent.version },
+      environment_id: process.env.ANTHROPIC_ENVIRONMENT_ID || "",
+    } as any);
 
-    for (const notice of flagged) {
-      await delay(2000);
-      console.log("[Scout] Analysing:", notice.title);
-      const result = await analyse(notice);
-      if (!result) continue;
+    // 3. Format targets for the agent
+    const targetsList = TARGETS.map((t) => `${t.name}: ${t.url}`).join("\n");
 
+    // 4. Send the command
+    await anthropic.beta.sessions.events.send(session.id, {
+      events: [
+        {
+          type: "user.message",
+          content: [
+            {
+              type: "text",
+              text: `Scout these targets for investigative leads:\n\n${targetsList}\n\nFor each significant story, output valid JSON.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    // 5. Listen to the event stream for results
+    let agentComplete = false;
+    let messageContent = "";
+
+    for await (const event of streamAgentEvents(session.id)) {
+      if (event.type === "message") {
+        const messageEvent = event as any;
+        if (messageEvent.content && Array.isArray(messageEvent.content)) {
+          for (const block of messageEvent.content) {
+            if (block.type === "text") {
+              messageContent += block.text;
+            }
+          }
+        }
+      }
+
+      if (event.type === "status.message" && "status" in event && (event as any).status === "completed") {
+        agentComplete = true;
+      }
+    }
+
+    // 6. Parse JSON objects from the message content
+    const jsonMatches = messageContent.match(/\{[^{}]*"title"[^{}]*\}/g) || [];
+
+    for (const jsonStr of jsonMatches) {
       try {
-        await publish(result, notice.url);
-        results.push(result);
-        scoops++;
-        console.log(`[Scout] Scoop published: ${result.title} (risk: ${result.risk_score})`);
+        const parsed = JSON.parse(jsonStr) as ScoutResult;
+        
+        // Validate the structure
+        if (parsed.title && parsed.summary && parsed.category && typeof parsed.risk_score === "number") {
+          // 7. Save to Supabase
+          await publish(parsed, `agent-session-${session.id}`);
+          results.push(parsed);
+          console.log(`[Scout] Scoop found: ${parsed.title} (risk: ${parsed.risk_score})`);
+        }
       } catch (err) {
-        console.error(`[Scout] Publish failed for "${result.title}":`, err);
+        if (err instanceof Error) {
+          console.error("[Scout] Failed to parse JSON:", err.message);
+        }
       }
     }
 
     return NextResponse.json({
-      success:        true,
-      notices_scraped: notices.length,
-      red_flag_hits:  flagged.length,
-      scoops_found:   scoops,
+      success: true,
+      agent_id: agent.id,
+      session_id: session.id,
+      scoops_found: results.length,
       results,
     });
   } catch (err) {
     console.error("[Scout] Fatal error:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { success: false, error: String(err) },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }
