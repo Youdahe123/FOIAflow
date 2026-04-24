@@ -99,24 +99,36 @@ async function analyse(notice: { title: string; text: string; url: string }): Pr
       messages: [
         {
           role: "user",
-          content: `You are an investigative journalist specializing in under-reported local government stories.
+          content: `You are an aggressive investigative journalist editor at a publication like The Intercept.
 
-Evaluate this public notice and determine if it represents a legitimate "Under-the-Radar" story — something with public impact that mainstream media would likely miss.
+Your job is to find stories worth investigating — not just confirmed scandals, but LEADS and SIGNALS that deserve more attention.
 
-Notice:
+Here is a headline/notice:
 Title: ${notice.title}
-Text: ${notice.text}
 Source: ${notice.url}
 
-If this IS a legitimate under-the-radar story, respond ONLY with valid JSON in this exact shape:
+ALWAYS return JSON unless this is literally a job posting, sports score, weather report, or advertisement. 
+
+For ANY of the following, return JSON:
+- Missing or disappeared people, scientists, journalists, activists
+- Government or corporate actions affecting vulnerable populations  
+- Humanitarian crises, displacement, conflict
+- Surveillance, data collection, privacy violations
+- Unexplained deaths, detentions, silencing
+- Policy changes with little public attention
+- Anything involving genocide, ethnic cleansing, war crimes
+- Environmental destruction or cover-ups
+- Whistleblowers or retaliation against truth-tellers
+
+Return ONLY this JSON, no other text:
 {
-  "title": "concise news headline",
-  "summary": "one punchy sentence explaining why this matters to the public",
-  "category": "one of: SURVEILLANCE | LAND_USE | CONTRACTS | EMERGENCY | POLICY | OTHER",
-  "risk_score": <integer 1-10 where 10 is most newsworthy>
+  "title": "punchy headline under 12 words",
+  "summary": "one sentence why this matters to the public",
+  "category": "SURVEILLANCE | HUMANITARIAN | MISSING | POLICY | ENVIRONMENT | CONTRACTS | OTHER",
+  "risk_score": <1-10, be generous, default to 6 if unsure>
 }
 
-If this is NOT newsworthy (routine notice, event listing, general info), respond with exactly: NOT_NEWSWORTHY`,
+Only respond NOT_NEWSWORTHY for job listings, sports, weather, and ads.`,
         },
       ],
     });
