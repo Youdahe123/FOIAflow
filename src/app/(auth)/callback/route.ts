@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -36,7 +38,10 @@ export async function GET(request: Request) {
         const dest = dbUser.subscriptionTier !== "FREE_TRIAL" ? "/dashboard" : "/pricing";
         return NextResponse.redirect(`${origin}${dest}`);
       }
-      return NextResponse.redirect(`${origin}${next}`);
+      if (next && next.startsWith('/')) {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
+      return NextResponse.redirect(`${origin}`);
     }
   }
   return NextResponse.redirect(`${origin}/login?error=auth`);

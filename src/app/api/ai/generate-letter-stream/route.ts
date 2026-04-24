@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest } from "next/server";
 import { callAIStream } from "@/lib/ai";
 import type { RequestLaw } from "@/types";

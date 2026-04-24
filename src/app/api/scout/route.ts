@@ -1,4 +1,6 @@
 // src/app/api/scout/route.ts
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";

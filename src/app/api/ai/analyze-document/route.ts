@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import { callAI, parseJsonResponse } from "@/lib/ai";
 import { getAnalyzeDocumentPrompt } from "@/prompts/analyze-document";
