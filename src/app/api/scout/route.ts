@@ -28,51 +28,28 @@ interface ScoutResult {
 }
 
 async function scrapeNotices(): Promise<{ title: string; text: string; url: string }[]> {
-  // Broad Target List: National (Intercept), State (MN Governor), and Local (Mpls)
-  const TARGETS = [
-    { name: "Mpls Public Notices", url: "https://www.minneapolismn.gov/government/city-council/meetings/" },
-    { name: "MN Governor Newsroom", url: "https://mn.gov/governor/newsroom/" },
-    { name: "The Intercept - Documents", url: "https://theintercept.com/documents/" },
-    { name: "MN Legislature", url: "https://www.revisor.mn.gov/bills/status_search.php?body=House" },
-    { name: "ProPublica Nonprofits", url: "https://projects.propublica.org/nonprofits/" },
-    { name: "Mpls City Council Votes", url: "https://minneapolis.legistar.com/Legislation.aspx" }
-  ];
+  const { data: html } = await axios.get(
+    "https://www.minneapolismn.gov/government/public-notices/",
+    { headers: { "User-Agent": "Mozilla/5.0 (compatible; SnowdenScout/1.0)" }, timeout: 10000 }
+  );
 
-  const allNotices: { title: string; text: string; url: string }[] = [];
+  const $ = cheerio.load(html);
+  const notices: { title: string; text: string; url: string }[] = [];
 
-  for (const target of TARGETS) {
-    try {
-      console.log(`[Scout] Harvesting from: ${target.name}`);
-      const { data: html } = await axios.get(target.url, { 
-        headers: { "User-Agent": "Mozilla/5.0 (SnowdenScout/1.0)" }, 
-        timeout: 10000 
+  // Cast a wide net — grab any anchor or article-like block
+  $("a, article, .notice, li").each((_, el) => {
+    const title = $(el).text().trim();
+    const href  = $(el).attr("href") || "";
+    if (title.length > 20 && title.length < 500) {
+      notices.push({
+        title,
+        text: title,
+        url: href.startsWith("http") ? href : `https://www.minneapolismn.gov${href}`,
       });
-
-      const $ = cheerio.load(html);
-
-      // This logic grabs headlines and links across different site layouts
-      $("a, h2, h3").each((_, el) => {
-        const title = $(el).text().trim();
-        const href = $(el).attr("href") || "";
-        
-        // Filter for potential headlines (not too short, not too long)
-        if (title.length > 25 && title.length < 300) {
-          allNotices.push({
-            title,
-            text: title,
-            url: href.startsWith("http") ? href : `${new URL(target.url).origin}${href}`,
-          });
-        }
-      });
-      
-      // Wait 1 second between sites to avoid getting blocked
-      await delay(1000); 
-    } catch (err: any) {
-      console.error(`[Scout] Failed to harvest ${target.name}:`, err.message);
     }
-  }
+  });
 
-  return allNotices;
+  return notices;
 }
 
 function sift(notices: { title: string; text: string; url: string }[]) {
@@ -107,7 +84,7 @@ If this IS a legitimate under-the-radar story, respond ONLY with valid JSON in t
   "risk_score": <integer 1-10 where 10 is most newsworthy>
 }
 
-Be AGGRESSIVE.If there is ANY hint of public impact, spending, policy change, or government action — even subtle — return the JSON. Only respond NOT_NEWSWORTHY for things like holiday schedules or park events.
+If this is NOT newsworthy (routine notice, event listing, general info), respond with exactly: NOT_NEWSWORTHY`,
         },
       ],
     });
@@ -124,18 +101,20 @@ Be AGGRESSIVE.If there is ANY hint of public impact, spending, policy change, or
 async function publish(result: ScoutResult, sourceUrl: string) {
   const { error } = await supabase.from("utr_clusters").upsert(
     {
-      title:         result.title,
-      summary:       result.summary,
-      category:      result.category,
-      risk_score:    result.risk_score,
-      source_url:    sourceUrl,
-      affected_area: "Minneapolis, MN", // Fix 2 applied here
+      title:       result.title,
+      summary:     result.summary,
+      category:    result.category,
+      risk_score:  result.risk_score,
+      source_url:  sourceUrl,
+      jurisdiction: "Minneapolis, MN",
+      trend_score: "emerging",
       discovered_at: new Date().toISOString(),
     },
     { onConflict: "title" }
   );
   if (error) throw error;
 }
+
 export async function GET() {
   try {
     console.log("[Scout] Starting harvest...");
