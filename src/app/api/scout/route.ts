@@ -137,7 +137,8 @@ Only respond NOT_NEWSWORTHY for job listings, sports, weather, and ads.`,
     if (raw === "NOT_NEWSWORTHY") return null;
 
     return JSON.parse(raw) as ScoutResult;
-  } catch {
+  } catch (err) {
+    console.error("[Scout] Analyse error:", err);
     return null;
   }
 }
@@ -174,6 +175,7 @@ export async function GET() {
 
     for (const notice of flagged) {
       await delay(2000);
+      console.log("[Scout] Analysing:", notice.title);
       const result = await analyse(notice);
       if (!result) continue;
 
