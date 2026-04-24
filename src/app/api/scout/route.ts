@@ -28,28 +28,48 @@ interface ScoutResult {
 }
 
 async function scrapeNotices(): Promise<{ title: string; text: string; url: string }[]> {
-  const { data: html } = await axios.get(
-    "https://www.minneapolismn.gov/government/public-notices/",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; SnowdenScout/1.0)" }, timeout: 10000 }
-  );
+  // Broad Target List: National (Intercept), State (MN Governor), and Local (Mpls)
+  const TARGETS = [
+    { name: "Mpls Public Notices", url: "https://www.minneapolismn.gov/government/city-council/meetings/" },
+    { name: "MN Governor Newsroom", url: "https://mn.gov/governor/newsroom/" },
+    { name: "The Intercept - Documents", url: "https://theintercept.com/documents/" }
+  ];
 
-  const $ = cheerio.load(html);
-  const notices: { title: string; text: string; url: string }[] = [];
+  const allNotices: { title: string; text: string; url: string }[] = [];
 
-  // Cast a wide net — grab any anchor or article-like block
-  $("a, article, .notice, li").each((_, el) => {
-    const title = $(el).text().trim();
-    const href  = $(el).attr("href") || "";
-    if (title.length > 20 && title.length < 500) {
-      notices.push({
-        title,
-        text: title,
-        url: href.startsWith("http") ? href : `https://www.minneapolismn.gov${href}`,
+  for (const target of TARGETS) {
+    try {
+      console.log(`[Scout] Harvesting from: ${target.name}`);
+      const { data: html } = await axios.get(target.url, { 
+        headers: { "User-Agent": "Mozilla/5.0 (SnowdenScout/1.0)" }, 
+        timeout: 10000 
       });
-    }
-  });
 
-  return notices;
+      const $ = cheerio.load(html);
+
+      // This logic grabs headlines and links across different site layouts
+      $("a, h2, h3").each((_, el) => {
+        const title = $(el).text().trim();
+        const href = $(el).attr("href") || "";
+        
+        // Filter for potential headlines (not too short, not too long)
+        if (title.length > 25 && title.length < 300) {
+          allNotices.push({
+            title,
+            text: title,
+            url: href.startsWith("http") ? href : `${new URL(target.url).origin}${href}`,
+          });
+        }
+      });
+      
+      // Wait 1 second between sites to avoid getting blocked
+      await delay(1000); 
+    } catch (err: any) {
+      console.error(`[Scout] Failed to harvest ${target.name}:`, err.message);
+    }
+  }
+
+  return allNotices;
 }
 
 function sift(notices: { title: string; text: string; url: string }[]) {
