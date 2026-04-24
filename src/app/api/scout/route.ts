@@ -6,9 +6,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
 const RED_FLAGS = [
-  "surveillance", "ordinance", "contract", "emergency amendment", "zoning",
-  "privatization", "no-bid", "sole source", "exemption", "waiver",
-  "executive order", "closed session", "personnel matter",
+  "missing", "disappeared", "silenced", "detained", "killed",
+  "genocide", "massacre", "ethnic cleansing", "war crime",
+  "suppressed", "censored", "whistleblower", "retaliation",
+  "unreported", "cover-up", "classified", "redacted",
+  "scientist", "researcher", "journalist", "activist",
+  "famine", "displacement", "refugee", "asylum",
+  "surveillance", "contract", "emergency", "no-bid",
 ];
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -28,28 +32,56 @@ interface ScoutResult {
 }
 
 async function scrapeNotices(): Promise<{ title: string; text: string; url: string }[]> {
-  const { data: html } = await axios.get(
-    "https://www.minneapolismn.gov/government/public-notices/",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; SnowdenScout/1.0)" }, timeout: 10000 }
-  );
+  const TARGETS = [
+    { name: "Missing & Endangered Persons - NamUs", url: "https://www.namus.gov/News" },
+    { name: "UN OCHA Humanitarian Alerts", url: "https://reliefweb.int/updates?source=OCHA" },
+    { name: "Committee to Protect Journalists", url: "https://cpj.org/news/" },
+    { name: "Genocide Watch", url: "https://www.genocidewatch.com/alerts" },
+    { name: "ACLU Press Releases", url: "https://www.aclu.org/press-releases" },
+    { name: "EFF Deeplinks", url: "https://www.eff.org/deeplinks" },
+    { name: "Missing Scientists - Science Integrity Digest", url: "https://scienceintegritydigest.com" },
+    { name: "The Intercept", url: "https://theintercept.com/news/" },
+    { name: "ProPublica Investigations", url: "https://www.propublica.org/investigations" },
+    { name: "Global Voices", url: "https://globalvoices.org/world/" },
+    { name: "Human Rights Watch", url: "https://www.hrw.org/news" },
+    { name: "MN Reformer", url: "https://minnesotareformer.com/briefs/" },
+  ];
 
-  const $ = cheerio.load(html);
-  const notices: { title: string; text: string; url: string }[] = [];
+  const allNotices: { title: string; text: string; url: string }[] = [];
 
-  // Cast a wide net — grab any anchor or article-like block
-  $("a, article, .notice, li").each((_, el) => {
-    const title = $(el).text().trim();
-    const href  = $(el).attr("href") || "";
-    if (title.length > 20 && title.length < 500) {
-      notices.push({
-        title,
-        text: title,
-        url: href.startsWith("http") ? href : `https://www.minneapolismn.gov${href}`,
+  for (const target of TARGETS) {
+    try {
+      console.log(`[Scout] Harvesting from: ${target.name}`);
+      const { data: html } = await axios.get(target.url, { 
+        headers: { "User-Agent": "Mozilla/5.0 (SnowdenScout/1.0)" }, 
+        timeout: 10000 
       });
-    }
-  });
 
-  return notices;
+      const $ = cheerio.load(html);
+
+      // This logic grabs headlines and links across different site layouts
+      $("a, h2, h3").each((_, el) => {
+        const title = $(el).text().trim();
+        const href = $(el).attr("href") || "";
+        
+        // Filter for potential headlines (not too short, not too long)
+        if (title.length > 25 && title.length < 300) {
+          allNotices.push({
+            title,
+            text: title,
+            url: href.startsWith("http") ? href : `${new URL(target.url).origin}${href}`,
+          });
+        }
+      });
+      
+      // Wait 1 second between sites to avoid getting blocked
+      await delay(1000); 
+    } catch (err: any) {
+      console.error(`[Scout] Failed to harvest ${target.name}:`, err.message);
+    }
+  }
+
+  return allNotices;
 }
 
 function sift(notices: { title: string; text: string; url: string }[]) {
