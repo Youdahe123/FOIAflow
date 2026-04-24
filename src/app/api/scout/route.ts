@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import * as cheerio from "cheerio";
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from 'groq-sdk';
 import { createClient } from "@supabase/supabase-js";
 
 const RED_FLAGS = [
@@ -17,7 +17,7 @@ const RED_FLAGS = [
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,13 +93,9 @@ function sift(notices: { title: string; text: string; url: string }[]) {
 
 async function analyse(notice: { title: string; text: string; url: string }): Promise<ScoutResult | null> {
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-latest",
-      max_tokens: 512,
-      messages: [
-        {
-          role: "user",
-          content: `You are an aggressive investigative journalist editor at a publication like The Intercept.
+    const result = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: `You are an aggressive investigative journalist editor at a publication like The Intercept.
 
 Your job is to find stories worth investigating — not just confirmed scandals, but LEADS and SIGNALS that deserve more attention.
 
@@ -128,12 +124,11 @@ Return ONLY this JSON, no other text:
   "risk_score": <1-10, be generous, default to 6 if unsure>
 }
 
-Only respond NOT_NEWSWORTHY for job listings, sports, weather, and ads.`,
-        },
-      ],
+Only respond NOT_NEWSWORTHY for job listings, sports, weather, and ads.` }],
+      max_tokens: 512,
     });
 
-    const raw = (message.content[0] as { type: string; text: string }).text.trim();
+    const raw = result.choices[0].message.content?.trim() ?? '';
     if (raw === "NOT_NEWSWORTHY") return null;
 
     return JSON.parse(raw) as ScoutResult;
