@@ -41,34 +41,6 @@ const RED_FLAGS = [
   "unidentified",
 ];
 
-async function scrapeTarget(url: string): Promise<Array<{ text: string; sourceUrl: string }>> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (SnowdenScout/1.0)",
-      },
-    });
-
-    const html = await response.text();
-
-    // Extract text blocks between HTML tags (40-300 chars)
-    const matches = html.match(/>[^<]{40,300}</g) || [];
-
-    const candidates = matches.map((match) => {
-      const cleaned = match.replace(/^>|<$/g, "").trim();
-      return {
-        text: cleaned,
-        sourceUrl: url,
-      };
-    });
-
-    return candidates;
-  } catch (error) {
-    console.error(`[SCRAPE_ERROR] ${url}:`, error);
-    return [];
-  }
-}
-
 function hasRedFlag(text: string): boolean {
   const lower = text.toLowerCase();
   return RED_FLAGS.some((flag) => lower.includes(flag));
