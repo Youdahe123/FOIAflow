@@ -1,198 +1,121 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const TARGETS = [
-  "https://www.namus.gov/News",
-  "https://reliefweb.int/updates?source=OCHA",
-];
-
 const QUERIES = [
-  "unreported local investigative news 2026",
-  "humanitarian crisis alerts under-reported 2026",
-  "unidentified persons cases namus 2026",
+  "underreported local government corruption 2026",
+  "investigative journalism exclusive 2026 unreported",
+  "humanitarian crisis ignored mainstream media 2026",
+  "whistleblower government cover-up 2026",
+  "missing persons cold case breakthrough 2026",
+  "local police misconduct unreported 2026",
+  "corporate fraud environmental cover-up 2026",
 ];
-
-const RED_FLAGS = [
-  "missing",
-  "disappeared",
-  "detained",
-  "killed",
-  "unreported",
-  "cover-up",
-  "surveillance",
-  "contract",
-  "emergency",
-  "genocide",
-  "displaced",
-  "asylum",
-  "whistleblower",
-  "silenced",
-  "censored",
-  "famine",
-  "massacre",
-  "unidentified",
-];
-
-function hasRedFlag(text: string): boolean {
-  const lower = text.toLowerCase();
-  return RED_FLAGS.some((flag) => lower.includes(flag));
-}
-
-async function analyseCandidate(
-  text: string,
-  sourceUrl: string
-): Promise<{ title: string; category: string; summary: string } | null> {
-  try {
-    const prompt = `Return ONLY a raw JSON object, no markdown, no backticks, no explanation.
-Schema: { "title": "headline under 10 words", "category": "one of: MISSING|HUMANITARIAN|SURVEILLANCE|POLICY|ENVIRONMENT|OTHER" }
-If this is a job listing, sports result, or navigation menu item return only the text: SKIP
-Input: ${text}`;
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY ?? ""}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        max_tokens: 256,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("[ANALYSE_ERROR] API response not ok:", data);
-      return null;
-    }
-
-    const content = data.choices?.[0]?.message?.content?.trim();
-
-    if (!content) {
-      console.error("[ANALYSE_ERROR] No content in response");
-      return null;
-    }
-
-    if (content === "SKIP") {
-      return null;
-    }
-
-    const parsed = JSON.parse(content);
-    return {
-      title: parsed.title ?? "Untitled",
-      category: parsed.category ?? "UNRESOLVED",
-      summary: text.slice(0, 200) + " | Source: " + sourceUrl,
-    };
-  } catch (err) {
-    console.error("[ANALYSE_ERROR]", err);
-    return null;
-  }
-}
-
-async function insertCluster(record: { title: string; summary: string; category: string }) {
-  console.log("[INSERT_ATTEMPT]", record.title);
-
-  const { data, error } = await supabase.from("utr_clusters").insert({
-    title: record.title,
-    summary: record.summary,
-    category: record.category ?? "UNRESOLVED",
-  });
-
-  console.log("SUPABASE_DATA:", JSON.stringify(data, null, 2));
-  console.log("FULL_ERROR_OBJECT:", JSON.stringify(error, null, 2));
-
-  if (error === null) {
-    console.log("[INSERT_SUCCESS]", record.title);
-  }
-
-  return { data, error };
-}
 
 async function tavilySearch(query: string) {
-  const response = await fetch("https://api.tavily.com/search", {
+  console.log("[TAVILY] Searching:", query);
+  const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
-    },
-    body: JSON.stringify({ query }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: process.env.TAVILY_API_KEY,
+      query,
+      search_depth: "advanced",
+      max_results: 5,
+      exclude_domains: [
+        "namus.gov", "youtube.com", "reddit.com",
+        "twitter.com", "facebook.com", "wikipedia.org"
+      ],
+      include_domains: [
+        "propublica.org", "theintercept.com", "theguardian.com",
+        "apnews.com", "reuters.com", "npr.org", "politico.com",
+        "nytimes.com", "washingtonpost.com", "bloomberg.com",
+        "marshall project.org", "texastribune.org", "stateline.org",
+        "missouriindependent.com", "nevadacurrent.com", "spotlightpa.org"
+      ]
+    }),
   });
 
-  const json = await response.json();
-  return json.results ?? [];
+  if (!res.ok) {
+    console.error("[TAVILY] HTTP error:", res.status, await res.text());
+    return [];
+  }
+
+  const data = await res.json();
+  console.log("[TAVILY] Results count:", data.results?.length ?? 0);
+  return data.results ?? [];
+}
+
+function assignCategory(title: string, content: string): string {
+  const text = (title + " " + content).toLowerCase();
+  if (text.match(/missing|unidentified|abducted|disappeared|namus/)) return "MISSING";
+  if (text.match(/humanitarian|crisis|displaced|refugee|famine|genocide/)) return "HUMANITARIAN";
+  if (text.match(/surveillance|tracking|facial recognition|data collection/)) return "SURVEILLANCE";
+  if (text.match(/corruption|cover-up|whistleblower|misconduct|fraud|cover up/)) return "POLICY";
+  if (text.match(/environment|pollution|chemical|toxic|climate/)) return "ENVIRONMENT";
+  return "INVESTIGATIVE";
 }
 
 export async function GET() {
+  console.log("[SCOUT] Starting Tavily global search...");
+  console.log("[SCOUT] TAVILY KEY:", process.env.TAVILY_API_KEY ? "LOADED ✓" : "MISSING ✗");
+
+  const seen = new Set<string>();
+  let inserted = 0;
+  let skipped = 0;
+  let totalFound = 0;
+
   try {
-    console.log("[SCOUT] GROQ KEY LOADED:", process.env.GROQ_API_KEY ? "YES" : "MISSING");
-
-    const allResults: any[] = [];
     for (const query of QUERIES) {
-      console.log("[SCOUT] Tavily searching:", query);
       const results = await tavilySearch(query);
-      console.log("[SCOUT] Tavily returned:", results.length, "for:", query);
-      allResults.push(...results);
-    }
+      totalFound += results.length;
 
-    const seenUrls = new Set<string>();
-    let insertedCount = 0;
+      for (const result of results) {
+        if (!result.title || !result.url || !result.content) { skipped++; continue; }
+        if (seen.has(result.url)) { skipped++; continue; }
+        if (result.content.length < 50) { skipped++; continue; }
+        seen.add(result.url);
 
-    for (const item of allResults) {
-      if (!item.url || seenUrls.has(item.url)) {
-        continue;
-      }
-      seenUrls.add(item.url);
+        const article = {
+          title: result.title.slice(0, 255),
+          summary: result.content.slice(0, 400) + " | Source: " + result.url,
+          category: assignCategory(result.title, result.content),
+          source_url: result.url,
+        };
 
-      const text = `${item.title || ""} ${item.content || ""}`.toLowerCase();
-      const category = text.includes("missing") || text.includes("namus")
-        ? "MISSING"
-        : text.includes("crisis") || text.includes("displaced")
-        ? "HUMANITARIAN"
-        : "INVESTIGATIVE";
+        console.log("[INSERT_ATTEMPT]", article.title);
+        const { data, error } = await supabase
+          .from("utr_clusters")
+          .insert(article);
 
-      const { data, error } = await supabase.from('utr_clusters').insert({
-        title: item.title,
-        summary: item.content,
-        category,
-      });
+        console.log("SUPABASE_DATA:", JSON.stringify(data));
+        console.log("FULL_ERROR_OBJECT:", JSON.stringify(error));
 
-      console.log("SUPABASE_DATA:", data);
-      console.log("FULL_ERROR_OBJECT:", error);
+        if (!error) {
+          inserted++;
+          console.log("[INSERT_SUCCESS]", article.title);
+        } else {
+          skipped++;
+        }
 
-      if (error) {
-        console.error("[SUPABASE_ERROR]", error);
-      } else {
-        console.log("[INSERT_SUCCESS]", item.title);
-        insertedCount++;
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
     return NextResponse.json({
       success: true,
-      total_found: allResults.length,
-      inserted: insertedCount,
+      total_found: totalFound,
+      inserted,
+      skipped,
       timestamp: new Date().toISOString(),
     });
+
   } catch (err) {
-    console.error("[FATAL_ERROR]", err);
-    return NextResponse.json(
-      { success: false, error: String(err) },
-      { status: 500 }
-    );
+    console.error("[SCOUT_FATAL]", err);
+    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }
