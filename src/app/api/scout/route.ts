@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -34,9 +32,10 @@ const RED_FLAGS = [
   "censored",
   "famine",
   "massacre",
+  "unidentified",
 ];
 
-async function scrapeTarget(url: string): Promise<string[]> {
+async function scrapeTarget(url: string): Promise<Array<{ text: string; sourceUrl: string }>> {
   try {
     const response = await fetch(url, {
       headers: {
@@ -46,13 +45,20 @@ async function scrapeTarget(url: string): Promise<string[]> {
 
     const html = await response.text();
 
-    // Extract text blocks between 40-300 chars
-    const regex = /[^<>]{40,300}/g;
-    const candidates = html.match(regex) || [];
+    // Extract text blocks between HTML tags (40-300 chars)
+    const matches = html.match(/>[^<]{40,300}</g) || [];
 
-    return candidates.map((c) => c.trim()).filter((c) => c.length >= 40 && c.length <= 300);
+    const candidates = matches.map((match) => {
+      const cleaned = match.replace(/^>|<$/g, "").trim();
+      return {
+        text: cleaned,
+        sourceUrl: url,
+      };
+    });
+
+    return candidates;
   } catch (error) {
-    console.error(`[Scout] Scrape error for ${url}:`, error);
+    console.error(`[SCRAPE_ERROR] ${url}:`, error);
     return [];
   }
 }
@@ -62,53 +68,84 @@ function hasRedFlag(text: string): boolean {
   return RED_FLAGS.some((flag) => lower.includes(flag));
 }
 
-async function analyzeCandidate(candidate: string): Promise<{
-  title: string;
-  summary: string;
-} | null> {
+async function analyseCandidate(
+  text: string,
+  sourceUrl: string
+): Promise<{ title: string; category: string; summary: string } | null> {
   try {
-    const prompt = `You are an aggressive investigative journalist. Given this headline or notice, return ONLY a JSON object with no markdown, no backticks, no explanation. JSON shape:
-{
-  "title": "punchy headline under 12 words",
-  "summary": "one sentence explaining why this matters to the public"
-}
-Only return NOT_NEWSWORTHY (plain text, nothing else) if this is a job listing, sports score, or weather report.
-Input: ${candidate}`;
+    const prompt = `Return ONLY a raw JSON object, no markdown, no backticks, no explanation.
+Schema: { "title": "headline under 10 words", "category": "one of: MISSING|HUMANITARIAN|SURVEILLANCE|POLICY|ENVIRONMENT|OTHER" }
+If this is a job listing, sports result, or navigation menu item return only the text: SKIP
+Input: ${text}`;
 
-    const message = await groq.messages.create({
-      model: "llama-3.1-8b-instant",
-      max_tokens: 200,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        max_tokens: 256,
+      }),
     });
 
-    const raw = message.content[0];
-    if (raw.type !== "text") return null;
+    const data = await response.json();
 
-    const text = raw.text.trim();
-
-    if (text === "NOT_NEWSWORTHY") {
+    if (!response.ok) {
+      console.error("[ANALYSE_ERROR] API response not ok:", data);
       return null;
     }
 
-    try {
-      const result = JSON.parse(text);
-      return result;
-    } catch (parseError) {
-      console.error("[Scout] JSON parse failed:", raw);
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      console.error("[ANALYSE_ERROR] No content in response");
       return null;
     }
-  } catch (error) {
-    console.error("[Scout] Analysis error:", error);
+
+    if (content === "SKIP") {
+      return null;
+    }
+
+    const parsed = JSON.parse(content);
+    return {
+      title: parsed.title,
+      category: parsed.category,
+      summary: text.slice(0, 200) + " | Source: " + sourceUrl,
+    };
+  } catch (err) {
+    console.error("[ANALYSE_ERROR]", err);
     return null;
   }
 }
 
-export async function POST() {
+async function insertCluster(record: { title: string; summary: string; category: string }) {
+  console.log("[INSERT_ATTEMPT]", record.title);
+
+  const { data, error } = await supabase.from("utr_clusters").insert({
+    title: record.title,
+    summary: record.summary,
+    category: record.category,
+  });
+
+  console.log("SUPABASE_DATA:", JSON.stringify(data, null, 2));
+  console.log("FULL_ERROR_OBJECT:", JSON.stringify(error, null, 2));
+
+  if (error === null) {
+    console.log("[INSERT_SUCCESS]", record.title);
+  }
+
+  return { data, error };
+}
+
+export async function GET() {
   try {
     let scrapedCount = 0;
     let filteredCount = 0;
@@ -118,35 +155,25 @@ export async function POST() {
       const candidates = await scrapeTarget(targetUrl);
       scrapedCount += candidates.length;
 
-      const filtered = candidates.filter((c) => hasRedFlag(c));
+      const filtered = candidates.filter((c) => hasRedFlag(c.text));
       filteredCount += filtered.length;
 
       for (const candidate of filtered) {
-        // 1500ms delay between AI calls
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        const result = await analyzeCandidate(candidate);
+        const analysisResult = await analyseCandidate(candidate.text, candidate.sourceUrl);
 
-        if (!result) {
+        if (!analysisResult) {
           continue;
         }
 
-        const sourceUrl = targetUrl.split("?")[0]; // Use base target URL
-        console.log("[Scout] Attempting insert:", result.title);
+        const insertResult = await insertCluster({
+          title: analysisResult.title,
+          summary: analysisResult.summary,
+          category: analysisResult.category,
+        });
 
-        const { error } = await supabase.from("utr_clusters").insert([
-          {
-            title: result.title,
-            summary: result.summary + " Source: " + sourceUrl,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-
-        if (error) {
-          console.error("SUPABASE_ERROR:", error);
-          console.error("[Scout] Insert error details:", JSON.stringify(error, null, 2));
-        } else {
-          console.log("[Scout] Insert success:", result.title);
+        if (insertResult.error === null) {
           insertedCount++;
         }
       }
@@ -157,11 +184,12 @@ export async function POST() {
       scraped: scrapedCount,
       filtered: filteredCount,
       inserted: insertedCount,
+      timestamp: new Date().toISOString(),
     });
-  } catch (error) {
-    console.error("[Scout] Route error:", error);
+  } catch (err) {
+    console.error("[FATAL_ERROR]", err);
     return NextResponse.json(
-      { success: false, error: "Scout operation failed" },
+      { success: false, error: String(err) },
       { status: 500 }
     );
   }
