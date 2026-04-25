@@ -95,18 +95,19 @@ export async function GET() {
     // 1. Create the Investigative Agent
     const agent = await anthropic.beta.agents.create({
       name: "Snowden Investigative Scout",
-      model: "claude-3-5-sonnet-latest",
-      system: `You are an elite investigative journalist with expertise in finding unreported stories. 
-      
+      model: "claude-3-5-sonnet-20241022",
+      system: `You are an elite investigative journalist with expertise in finding unreported stories.
+
 Your mission: Visit the provided URLs using web_fetch and web_search tools. For each source:
 1. Fetch and analyze the content
 2. Identify high-impact stories related to: missing persons, genocide, surveillance, human rights, environmental destruction, whistleblowers, or corporate/government misconduct
-3. For EACH compelling story found, output a separate JSON object with this exact structure:
+3. For EACH compelling story found, output a separate JSON object with this exact structure (MUST include a valid absolute source_url pointing to the original item):
 {
   "title": "punchy headline",
   "summary": "one sentence why this matters",
   "category": "SURVEILLANCE | HUMANITARIAN | MISSING | POLICY | ENVIRONMENT | CONTRACTS | OTHER",
-  "risk_score": <number 1-10>
+  "risk_score": <number 1-10>,
+  "source_url": "https://..."
 }
 
 Be aggressive - default to 6+ for anything with public impact. Separate each JSON object with a newline.`,
@@ -158,19 +159,22 @@ Be aggressive - default to 6+ for anything with public impact. Separate each JSO
       }
     }
 
-    // 6. Parse JSON objects from the message content
+    // 6. Parse JSON objects from the message content (expecting source_url included)
     const jsonMatches = messageContent.match(/\{[^{}]*"title"[^{}]*\}/g) || [];
 
     for (const jsonStr of jsonMatches) {
       try {
-        const parsed = JSON.parse(jsonStr) as ScoutResult;
-        
+        const parsed = JSON.parse(jsonStr) as ScoutResult & { source_url?: string };
+
         // Validate the structure
         if (parsed.title && parsed.summary && parsed.category && typeof parsed.risk_score === "number") {
+          // prefer the parsed source_url if provided
+          const sourceUrl = parsed.source_url && parsed.source_url.startsWith("http") ? parsed.source_url : `agent-session-${session.id}`;
+
           // 7. Save to Supabase
-          await publish(parsed, `agent-session-${session.id}`);
+          await publish(parsed, sourceUrl);
           results.push(parsed);
-          console.log(`[Scout] Scoop found: ${parsed.title} (risk: ${parsed.risk_score})`);
+          console.log(`[Scout] Scoop found: ${parsed.title} (risk: ${parsed.risk_score}) -> ${sourceUrl}`);
         }
       } catch (err) {
         if (err instanceof Error) {

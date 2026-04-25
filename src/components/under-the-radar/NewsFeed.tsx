@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { FileText, TrendingUp, AlertTriangle, Radio } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -230,7 +231,53 @@ function NewsTicker({ mounted }: { mounted: boolean }) {
 
 export default function NewsFeed() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [liveItems, setLiveItems] = useState<NewsItem[] | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+
+    async function loadLive() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("utr_clusters")
+          .select("id,title,summary,category,source_url,discovered_at,affected_area")
+          .order("discovered_at", { ascending: false })
+          .limit(12);
+
+        if (error) {
+          console.error("[NewsFeed] Supabase error:", error);
+          return;
+        }
+
+        if (!data) return;
+
+        const mapped: NewsItem[] = data.map((d: any) => {
+          let host = "Source";
+          try {
+            if (d.source_url) host = new URL(d.source_url).host;
+          } catch {}
+
+          return {
+            id: String(d.id ?? d.title ?? Math.random()),
+            headline: d.title ?? "",
+            source: host,
+            jurisdiction: d.affected_area ?? "",
+            date: d.discovered_at ? new Date(d.discovered_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "",
+            summary: d.summary ?? "",
+            tag: d.category ?? "",
+            source_url: d.source_url ?? undefined,
+          };
+        });
+
+        setLiveItems(mapped);
+      } catch (err) {
+        console.error("[NewsFeed] load error:", err);
+      }
+    }
+
+    loadLive();
+  }, []);
 
   const dateStr = mounted
     ? new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
@@ -299,63 +346,58 @@ export default function NewsFeed() {
             <SectionLabel accent>Latest Emerging Clusters</SectionLabel>
 
             {/* LEAD STORY */}
-            <article className="border-b-2 border-[#1a1a1a] py-5">
-              <div className="flex items-center gap-3 mb-2">
-                {LEAD.isBreaking && (
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[10px] font-black tracking-[0.2em] uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#e31212] animate-pulse" /> DEVELOPING
-                  </span>
-                )}
-                <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase">{LEAD.tag}</span>
-              </div>
-              <h2
-                style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }}
-                className="text-[2.6rem] font-black leading-[1.05] tracking-tight mb-3"
-              >
-                {LEAD.source_url ? (
-                  <a
-                    href={LEAD.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "inherit", textDecoration: "none" }}
+            {(() => {
+              const lead = liveItems && liveItems.length > 0 ? liveItems[0] : LEAD;
+              return (
+                <article className="border-b-2 border-[#1a1a1a] py-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    {(lead.isBreaking) && (
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[10px] font-black tracking-[0.2em] uppercase flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#e31212] animate-pulse" /> DEVELOPING
+                      </span>
+                    )}
+                    <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase">{lead.tag}</span>
+                  </div>
+                  <h2
+                    style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }}
+                    className="text-[2.6rem] font-black leading-[1.05] tracking-tight mb-3"
                   >
-                    {LEAD.headline}
-                  </a>
-                ) : (
-                  LEAD.headline
-                )}
-              </h2>
-              <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-[1.05rem] leading-relaxed mb-4">
-                {LEAD.summary}
-              </p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {[LEAD.source, LEAD.jurisdiction, LEAD.date].map((v, i) => (
-                    <React.Fragment key={v}>
-                      {i > 0 && <span className="text-[#5a5a5a]">·</span>}
-                      {i === 0 && LEAD.source_url ? (
-                        <a
-                          href={LEAD.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a", textDecoration: "none" }}
-                          className="text-[10px] font-black tracking-widest uppercase"
-                        >
-                          {v}
-                        </a>
-                      ) : (
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{v}</span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-                <FoiaButton />
-              </div>
-            </article>
+                    {lead.source_url ? (
+                      <a href={lead.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                        {lead.headline}
+                      </a>
+                    ) : (
+                      lead.headline
+                    )}
+                  </h2>
+                  <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-[1.05rem] leading-relaxed mb-4">
+                    {lead.summary}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const parts = [lead.source, lead.jurisdiction, lead.date];
+                        return parts.map((v, i) => (
+                          <React.Fragment key={String(v) + i}>
+                            {i > 0 && <span className="text-[#5a5a5a]">·</span>}
+                            {i === 0 && lead.source_url ? (
+                              <a href={String(lead.source_url)} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a", textDecoration: "none" }} className="text-[10px] font-black tracking-widest uppercase">{v}</a>
+                            ) : (
+                              <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{v}</span>
+                            )}
+                          </React.Fragment>
+                        ));
+                      })()}
+                    </div>
+                    <FoiaButton />
+                  </div>
+                </article>
+              );
+            })()}
 
             {/* 2-COL SECONDARY */}
             <div className="grid grid-cols-2 divide-x-2 divide-[#1a1a1a] border-b-2 border-[#1a1a1a]">
-              {SECONDARY.map((item, i) => (
+              {(liveItems && liveItems.length > 1 ? liveItems.slice(1, 3) : SECONDARY).map((item, i) => (
                 <article key={item.id} className={`py-4 ${i === 0 ? "pr-5" : "pl-5"}`}>
                   <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase block mb-1.5">{item.tag}</span>
                   <h3 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.35rem] font-black leading-tight mb-2">
@@ -379,7 +421,7 @@ export default function NewsFeed() {
             {/* BRIEFS */}
             <div className="mt-0">
               <SectionLabel>Dispatches</SectionLabel>
-              {BRIEFS.map((item, i) => (
+              {(liveItems && liveItems.length > 3 ? liveItems.slice(3) : BRIEFS).map((item, i) => (
                 <article key={item.id} className={`py-2.5 flex items-start justify-between gap-4 ${i < BRIEFS.length - 1 ? "border-b border-[#1a1a1a]" : ""}`}>
                   <div className="flex-1">
                     <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[9px] font-black tracking-[0.2em] uppercase mr-2">{item.tag}</span>
