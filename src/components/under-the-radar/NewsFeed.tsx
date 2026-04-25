@@ -2,7 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { FileText, TrendingUp, AlertTriangle, Radio } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -231,53 +236,43 @@ function NewsTicker({ mounted }: { mounted: boolean }) {
 
 export default function NewsFeed() {
   const [mounted, setMounted] = useState(false);
-  const [liveItems, setLiveItems] = useState<NewsItem[] | null>(null);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+
+  const loadArticles = async () => {
+    const { data, error } = await supabase
+      .from("utr_clusters")
+      .select("title, summary, source_url, created_at")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (error) console.error("[NewsFeed] Fetch error:", error);
+    if (data) setArticles(data);
+    setLoading(false);
+  };
+
+  const runScout = async () => {
+    setScanning(true);
+    await fetch("/api/scout", { method: "POST" });
+    await loadArticles();
+    setScanning(false);
+  };
 
   useEffect(() => {
     setMounted(true);
-
-    async function loadLive() {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("utr_clusters")
-          .select("id,title,summary,category,source_url,discovered_at,affected_area")
-          .order("discovered_at", { ascending: false })
-          .limit(12);
-
-        if (error) {
-          console.error("[NewsFeed] Supabase error:", error);
-          return;
-        }
-
-        if (!data) return;
-
-        const mapped: NewsItem[] = data.map((d: any) => {
-          let host = "Source";
-          try {
-            if (d.source_url) host = new URL(d.source_url).host;
-          } catch {}
-
-          return {
-            id: String(d.id ?? d.title ?? Math.random()),
-            headline: d.title ?? "",
-            source: host,
-            jurisdiction: d.affected_area ?? "",
-            date: d.discovered_at ? new Date(d.discovered_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "",
-            summary: d.summary ?? "",
-            tag: d.category ?? "",
-            source_url: d.source_url ?? undefined,
-          };
-        });
-
-        setLiveItems(mapped);
-      } catch (err) {
-        console.error("[NewsFeed] load error:", err);
-      }
-    }
-
-    loadLive();
+    loadArticles();
   }, []);
+
+  if (loading) return <div className="text-ink p-12 font-serif text-xl">INITIALIZING...</div>
+
+  if (articles.length === 0) return (
+    <div className="text-ink p-12 font-serif text-xl text-center">
+      NO CLUSTERS DETECTED.
+      <button onClick={runScout} className="block mx-auto mt-4 bg-accent text-white px-6 py-2 font-sans text-sm">
+        RUN SCOUT NOW
+      </button>
+    </div>
+  )
 
   const dateStr = mounted
     ? new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
@@ -326,7 +321,7 @@ export default function NewsFeed() {
         <div style={{ backgroundColor: "#1a1a1a", color: "#f4f4f2" }} className="flex items-center gap-3 px-4 py-2.5 mb-6">
           <AlertTriangle size={14} style={{ color: "#e31212" }} />
           <span style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[10px] font-black tracking-[0.15em] uppercase">
-            {CLUSTERS.filter(c => c.trendScore === "emerging").length} Emerging Clusters Active &nbsp;·&nbsp; {BRIEFS.length + SECONDARY.length + 1} Items Indexed Today &nbsp;·&nbsp; System Status: MONITORING
+            {articles.length} Clusters Active &nbsp;·&nbsp; {articles.length} Items Indexed &nbsp;·&nbsp; System Status: MONITORING
           </span>
         </div>
 
@@ -346,17 +341,14 @@ export default function NewsFeed() {
             <SectionLabel accent>Latest Emerging Clusters</SectionLabel>
 
             {/* LEAD STORY */}
-            {(() => {
-              const lead = liveItems && liveItems.length > 0 ? liveItems[0] : LEAD;
+            {articles.length > 0 && (() => {
+              const lead = articles[0];
               return (
                 <article className="border-b-2 border-[#1a1a1a] py-5">
                   <div className="flex items-center gap-3 mb-2">
-                    {(lead.isBreaking) && (
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[10px] font-black tracking-[0.2em] uppercase flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#e31212] animate-pulse" /> DEVELOPING
-                      </span>
-                    )}
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase">{lead.tag}</span>
+                    <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[10px] font-black tracking-[0.2em] uppercase flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#e31212] animate-pulse" /> DEVELOPING
+                    </span>
                   </div>
                   <h2
                     style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }}
@@ -364,10 +356,10 @@ export default function NewsFeed() {
                   >
                     {lead.source_url ? (
                       <a href={lead.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                        {lead.headline}
+                        {lead.title}
                       </a>
                     ) : (
-                      lead.headline
+                      lead.title
                     )}
                   </h2>
                   <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-[1.05rem] leading-relaxed mb-4">
@@ -375,19 +367,9 @@ export default function NewsFeed() {
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {(() => {
-                        const parts = [lead.source, lead.jurisdiction, lead.date];
-                        return parts.map((v, i) => (
-                          <React.Fragment key={String(v) + i}>
-                            {i > 0 && <span className="text-[#5a5a5a]">·</span>}
-                            {i === 0 && lead.source_url ? (
-                              <a href={String(lead.source_url)} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a", textDecoration: "none" }} className="text-[10px] font-black tracking-widest uppercase">{v}</a>
-                            ) : (
-                              <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{v}</span>
-                            )}
-                          </React.Fragment>
-                        ));
-                      })()}
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </span>
                     </div>
                     <FoiaButton />
                   </div>
@@ -396,54 +378,58 @@ export default function NewsFeed() {
             })()}
 
             {/* 2-COL SECONDARY */}
-            <div className="grid grid-cols-2 divide-x-2 divide-[#1a1a1a] border-b-2 border-[#1a1a1a]">
-              {(liveItems && liveItems.length > 1 ? liveItems.slice(1, 3) : SECONDARY).map((item, i) => (
-                <article key={item.id} className={`py-4 ${i === 0 ? "pr-5" : "pl-5"}`}>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase block mb-1.5">{item.tag}</span>
-                  <h3 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.35rem] font-black leading-tight mb-2">
-                    {item.source_url ? (
-                      <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                        {item.headline}
-                      </a>
-                    ) : (
-                      item.headline
-                    )}
-                  </h3>
-                  <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-sm leading-snug mb-3">{item.summary}</p>
-                  <div className="flex items-center justify-between">
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{item.jurisdiction}</span>
-                    <FoiaButton />
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {/* BRIEFS */}
-            <div className="mt-0">
-              <SectionLabel>Dispatches</SectionLabel>
-              {(liveItems && liveItems.length > 3 ? liveItems.slice(3) : BRIEFS).map((item, i) => (
-                <article key={item.id} className={`py-2.5 flex items-start justify-between gap-4 ${i < BRIEFS.length - 1 ? "border-b border-[#1a1a1a]" : ""}`}>
-                  <div className="flex-1">
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[9px] font-black tracking-[0.2em] uppercase mr-2">{item.tag}</span>
-                    <h4 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.05rem] font-bold leading-snug inline">
+            {articles.length > 1 && (
+              <div className="grid grid-cols-2 divide-x-2 divide-[#1a1a1a] border-b-2 border-[#1a1a1a]">
+                {articles.slice(1, 3).map((item, i) => (
+                  <article key={item.title} className={`py-4 ${i === 0 ? "pr-5" : "pl-5"}`}>
+                    <h3 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.35rem] font-black leading-tight mb-2">
                       {item.source_url ? (
                         <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-                          {item.headline}
+                          {item.title}
                         </a>
                       ) : (
-                        item.headline
+                        item.title
                       )}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[9px] font-black tracking-widest uppercase">{item.jurisdiction}</span>
-                      <span className="text-[#5a5a5a]">·</span>
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[9px] font-black tracking-widest uppercase">{item.date}</span>
+                    </h3>
+                    <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-sm leading-snug mb-3">{item.summary}</p>
+                    <div className="flex items-center justify-between">
+                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </span>
+                      <FoiaButton />
                     </div>
-                  </div>
-                  <FoiaButton />
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {/* BRIEFS */}
+            {articles.length > 3 && (
+              <div className="mt-0">
+                <SectionLabel>Dispatches</SectionLabel>
+                {articles.slice(3).map((item, i) => (
+                  <article key={item.title} className={`py-2.5 flex items-start justify-between gap-4 ${i < articles.length - 4 ? "border-b border-[#1a1a1a]" : ""}`}>
+                    <div className="flex-1">
+                      <h4 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.05rem] font-bold leading-snug inline">
+                        {item.source_url ? (
+                          <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                            {item.title}
+                          </a>
+                        ) : (
+                          item.title
+                        )}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[9px] font-black tracking-widest uppercase">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <FoiaButton />
+                  </article>
+                ))}
+              </div>
+            )}
           </main>
 
           {/* COL 3: Cluster Rail */}
@@ -451,6 +437,18 @@ export default function NewsFeed() {
             <SectionLabel>Trend Clusters</SectionLabel>
             <div className="pt-2">
               {CLUSTERS.map((c) => <ClusterCard key={c.id} cluster={c} />)}
+            </div>
+
+            {/* Scout Button */}
+            <div style={{ backgroundColor: "#1a1a1a" }} className="mt-6 p-4">
+              <button
+                onClick={runScout}
+                disabled={scanning}
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                className="w-full bg-accent text-newsprint font-black tracking-[0.2em] uppercase py-3 disabled:opacity-50"
+              >
+                {scanning ? "SCANNING..." : "RUN SCOUT"}
+              </button>
             </div>
 
             {/* Quote box */}
