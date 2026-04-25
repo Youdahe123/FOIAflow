@@ -14,6 +14,12 @@ const TARGETS = [
   "https://reliefweb.int/updates?source=OCHA",
 ];
 
+const QUERIES = [
+  "unreported local investigative news 2026",
+  "humanitarian crisis alerts under-reported 2026",
+  "unidentified persons cases namus 2026",
+];
+
 const RED_FLAGS = [
   "missing",
   "disappeared",
@@ -145,46 +151,68 @@ async function insertCluster(record: { title: string; summary: string; category:
   return { data, error };
 }
 
+async function tavilySearch(query: string) {
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
+    },
+    body: JSON.stringify({ query }),
+  });
+
+  const json = await response.json();
+  return json.results ?? [];
+}
+
 export async function GET() {
   try {
     console.log("[SCOUT] GROQ KEY LOADED:", process.env.GROQ_API_KEY ? "YES" : "MISSING");
 
-    let scrapedCount = 0;
-    let filteredCount = 0;
+    const allResults: any[] = [];
+    for (const query of QUERIES) {
+      console.log("[SCOUT] Tavily searching:", query);
+      const results = await tavilySearch(query);
+      console.log("[SCOUT] Tavily returned:", results.length, "for:", query);
+      allResults.push(...results);
+    }
+
+    const seenUrls = new Set<string>();
     let insertedCount = 0;
 
-    for (const targetUrl of TARGETS) {
-      const candidates = await scrapeTarget(targetUrl);
-      scrapedCount += candidates.length;
+    for (const item of allResults) {
+      if (!item.url || seenUrls.has(item.url)) {
+        continue;
+      }
+      seenUrls.add(item.url);
 
-      const filtered = candidates.filter((c) => hasRedFlag(c.text));
-      filteredCount += filtered.length;
+      const text = `${item.title || ""} ${item.content || ""}`.toLowerCase();
+      const category = text.includes("missing") || text.includes("namus")
+        ? "MISSING"
+        : text.includes("crisis") || text.includes("displaced")
+        ? "HUMANITARIAN"
+        : "INVESTIGATIVE";
 
-      for (const candidate of filtered) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.from('utr_clusters').insert({
+        title: item.title,
+        summary: item.content,
+        category,
+      });
 
-        const analysisResult = await analyseCandidate(candidate.text, candidate.sourceUrl);
+      console.log("SUPABASE_DATA:", data);
+      console.log("FULL_ERROR_OBJECT:", error);
 
-        if (!analysisResult) {
-          continue;
-        }
-
-        const insertResult = await insertCluster({
-          title: analysisResult.title,
-          summary: analysisResult.summary,
-          category: analysisResult.category,
-        });
-
-        if (insertResult.error === null) {
-          insertedCount++;
-        }
+      if (error) {
+        console.error("[SUPABASE_ERROR]", error);
+      } else {
+        console.log("[INSERT_SUCCESS]", item.title);
+        insertedCount++;
       }
     }
 
     return NextResponse.json({
       success: true,
-      scraped: scrapedCount,
-      filtered: filteredCount,
+      total_found: allResults.length,
       inserted: insertedCount,
       timestamp: new Date().toISOString(),
     });
