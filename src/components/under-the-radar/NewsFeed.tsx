@@ -27,6 +27,7 @@ interface NewsItem {
   summary?: string;
   tag: string;
   isBreaking?: boolean;
+  source_url?: string;
 }
 
 interface Investigator {
@@ -73,6 +74,7 @@ const LEAD: NewsItem = {
   summary: "A coordinated legislative effort — largely unreported by national media — is advancing identical contract language across rural water districts in the Midwest and Southeast. Legal filings obtained through open records requests reveal the template language originated from a single K Street lobbying firm with ties to three private equity funds.",
   tag: "WATER RIGHTS",
   isBreaking: true,
+  source_url: "https://example.com/lead-water-privatization",
 };
 
 const SECONDARY: NewsItem[] = [
@@ -84,6 +86,7 @@ const SECONDARY: NewsItem[] = [
     date: "April 20, 2026",
     summary: "Council members cite 'ongoing vendor negotiations' but no contract has been disclosed publicly.",
     tag: "LAW ENFORCEMENT",
+    source_url: "https://example.com/minneapolis-body-camera",
   },
   {
     id: "s2",
@@ -93,15 +96,16 @@ const SECONDARY: NewsItem[] = [
     date: "April 19, 2026",
     summary: "The transfers, filed individually over six weeks, evaded the threshold requiring public comment periods.",
     tag: "TELECOMMUNICATIONS",
+    source_url: "https://example.com/fcc-docket-26-117",
   },
 ];
 
 const BRIEFS: NewsItem[] = [
-  { id: "b1", headline: "Three Texas Counties Reclassify Wildfire Response Records as 'Homeland Security' Exempt", source: "TX Open Gov", jurisdiction: "TX", date: "Apr 21", tag: "EMERGENCY" },
-  { id: "b2", headline: "USDA Quietly Withdraws Proposed Rule on Concentrated Animal Feeding Operations Reporting", source: "Ag Policy Monitor", jurisdiction: "Federal", date: "Apr 20", tag: "AGRICULTURE" },
-  { id: "b3", headline: "Port Authority of NY/NJ Files for Retroactive Exemption on $2.3B Infrastructure Contract", source: "NE Contracts Watch", jurisdiction: "NY/NJ", date: "Apr 19", tag: "INFRASTRUCTURE" },
-  { id: "b4", headline: "Nevada Gaming Control Board Delays Release of Audit Finding for Eleventh Consecutive Month", source: "Silver State Records", jurisdiction: "NV", date: "Apr 18", tag: "GAMING" },
-  { id: "b5", headline: "Ohio School Board Model Resolution Restricting Curriculum Records Adopted by 11 Districts", source: "Education Records Digest", jurisdiction: "Statewide, OH", date: "Apr 17", tag: "EDUCATION" },
+  { id: "b1", headline: "Three Texas Counties Reclassify Wildfire Response Records as 'Homeland Security' Exempt", source: "TX Open Gov", jurisdiction: "TX", date: "Apr 21", tag: "EMERGENCY", source_url: "https://example.com/tx-wildfire-reclass" },
+  { id: "b2", headline: "USDA Quietly Withdraws Proposed Rule on Concentrated Animal Feeding Operations Reporting", source: "Ag Policy Monitor", jurisdiction: "Federal", date: "Apr 20", tag: "AGRICULTURE", source_url: "https://example.com/usda-cafos" },
+  { id: "b3", headline: "Port Authority of NY/NJ Files for Retroactive Exemption on $2.3B Infrastructure Contract", source: "NE Contracts Watch", jurisdiction: "NY/NJ", date: "Apr 19", tag: "INFRASTRUCTURE", source_url: "https://example.com/port-authority-exemption" },
+  { id: "b4", headline: "Nevada Gaming Control Board Delays Release of Audit Finding for Eleventh Consecutive Month", source: "Silver State Records", jurisdiction: "NV", date: "Apr 18", tag: "GAMING", source_url: "https://example.com/nv-audit-delay" },
+  { id: "b5", headline: "Ohio School Board Model Resolution Restricting Curriculum Records Adopted by 11 Districts", source: "Education Records Digest", jurisdiction: "Statewide, OH", date: "Apr 17", tag: "EDUCATION", source_url: "https://example.com/ohio-school-resolution" },
 ];
 
 const TICKER_OUTLETS = [
@@ -308,7 +312,18 @@ export default function NewsFeed() {
                 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }}
                 className="text-[2.6rem] font-black leading-[1.05] tracking-tight mb-3"
               >
-                {LEAD.headline}
+                {LEAD.source_url ? (
+                  <a
+                    href={LEAD.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "inherit", textDecoration: "none" }}
+                  >
+                    {LEAD.headline}
+                  </a>
+                ) : (
+                  LEAD.headline
+                )}
               </h2>
               <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-[1.05rem] leading-relaxed mb-4">
                 {LEAD.summary}
@@ -318,7 +333,19 @@ export default function NewsFeed() {
                   {[LEAD.source, LEAD.jurisdiction, LEAD.date].map((v, i) => (
                     <React.Fragment key={v}>
                       {i > 0 && <span className="text-[#5a5a5a]">·</span>}
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{v}</span>
+                      {i === 0 && LEAD.source_url ? (
+                        <a
+                          href={LEAD.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a", textDecoration: "none" }}
+                          className="text-[10px] font-black tracking-widest uppercase"
+                        >
+                          {v}
+                        </a>
+                      ) : (
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{v}</span>
+                      )}
                     </React.Fragment>
                   ))}
                 </div>
@@ -331,7 +358,15 @@ export default function NewsFeed() {
               {SECONDARY.map((item, i) => (
                 <article key={item.id} className={`py-4 ${i === 0 ? "pr-5" : "pl-5"}`}>
                   <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase block mb-1.5">{item.tag}</span>
-                  <h3 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.35rem] font-black leading-tight mb-2">{item.headline}</h3>
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.35rem] font-black leading-tight mb-2">
+                    {item.source_url ? (
+                      <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                        {item.headline}
+                      </a>
+                    ) : (
+                      item.headline
+                    )}
+                  </h3>
                   <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-sm leading-snug mb-3">{item.summary}</p>
                   <div className="flex items-center justify-between">
                     <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">{item.jurisdiction}</span>
@@ -348,7 +383,15 @@ export default function NewsFeed() {
                 <article key={item.id} className={`py-2.5 flex items-start justify-between gap-4 ${i < BRIEFS.length - 1 ? "border-b border-[#1a1a1a]" : ""}`}>
                   <div className="flex-1">
                     <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} className="text-[9px] font-black tracking-[0.2em] uppercase mr-2">{item.tag}</span>
-                    <h4 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.05rem] font-bold leading-snug inline">{item.headline}</h4>
+                    <h4 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-[1.05rem] font-bold leading-snug inline">
+                      {item.source_url ? (
+                        <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+                          {item.headline}
+                        </a>
+                      ) : (
+                        item.headline
+                      )}
+                    </h4>
                     <div className="flex items-center gap-2 mt-1">
                       <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[9px] font-black tracking-widest uppercase">{item.jurisdiction}</span>
                       <span className="text-[#5a5a5a]">·</span>
