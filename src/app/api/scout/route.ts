@@ -134,18 +134,17 @@ export async function POST() {
         const sourceUrl = targetUrl.split("?")[0]; // Use base target URL
         console.log("[Scout] Attempting insert:", result.title);
 
-        const { error } = await supabase.from("utr_clusters").upsert(
+        const { error } = await supabase.from("utr_clusters").insert([
           {
             title: result.title,
-            summary: result.summary,
-            source_url: sourceUrl,
+            summary: result.summary + " Source: " + sourceUrl,
             created_at: new Date().toISOString(),
           },
-          { onConflict: "title" }
-        );
+        ]);
 
         if (error) {
-          console.error("[Scout] Supabase insert error:", JSON.stringify(error, null, 2));
+          console.error("SUPABASE_ERROR:", error);
+          console.error("[Scout] Insert error details:", JSON.stringify(error, null, 2));
         } else {
           console.log("[Scout] Insert success:", result.title);
           insertedCount++;
