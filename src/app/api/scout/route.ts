@@ -82,7 +82,7 @@ Input: ${text}`;
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${process.env.GROQ_API_KEY ?? ""}`,
       },
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
@@ -116,8 +116,8 @@ Input: ${text}`;
 
     const parsed = JSON.parse(content);
     return {
-      title: parsed.title,
-      category: parsed.category,
+      title: parsed.title ?? "Untitled",
+      category: parsed.category ?? "UNRESOLVED",
       summary: text.slice(0, 200) + " | Source: " + sourceUrl,
     };
   } catch (err) {
@@ -132,7 +132,7 @@ async function insertCluster(record: { title: string; summary: string; category:
   const { data, error } = await supabase.from("utr_clusters").insert({
     title: record.title,
     summary: record.summary,
-    category: record.category,
+    category: record.category ?? "UNRESOLVED",
   });
 
   console.log("SUPABASE_DATA:", JSON.stringify(data, null, 2));
@@ -147,6 +147,8 @@ async function insertCluster(record: { title: string; summary: string; category:
 
 export async function GET() {
   try {
+    console.log("[SCOUT] GROQ KEY LOADED:", process.env.GROQ_API_KEY ? "YES" : "MISSING");
+
     let scrapedCount = 0;
     let filteredCount = 0;
     let insertedCount = 0;
