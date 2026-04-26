@@ -242,6 +242,9 @@ export default function NewsFeed() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [marketData, setMarketData] = useState<any[]>([]);
+  const [marketMeta, setMarketMeta] = useState<{ price: string; change: string; changePercent: string; positive: boolean } | null>(null);
+  const [marketLoading, setMarketLoading] = useState(true);
 
   const loadArticles = async () => {
     const { data, error } = await supabase
@@ -311,6 +314,47 @@ export default function NewsFeed() {
     setSearchResults([]);
   };
 
+  const loadMarketData = async () => {
+    try {
+      const res = await fetch(
+        `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=SPY&interval=5min&apikey=${process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY}&outputsize=compact`
+      );
+      const data = await res.json();
+      const timeSeries = data["Time Series (5min)"];
+      if (!timeSeries) {
+        console.error("[MARKET] No data returned:", data);
+        setMarketLoading(false);
+        return;
+      }
+
+      const entries = Object.entries(timeSeries)
+        .slice(0, 30)
+        .reverse()
+        .map(([time, values]: [string, any]) => ({
+          time: time.slice(11, 16),
+          price: parseFloat(values["4. close"]),
+        }));
+
+      const latest = entries[entries.length - 1]?.price ?? 0;
+      const earliest = entries[0]?.price ?? 0;
+      const change = latest - earliest;
+      const changePercent = ((change / earliest) * 100).toFixed(2);
+      const positive = change >= 0;
+
+      setMarketData(entries);
+      setMarketMeta({
+        price: latest.toFixed(2),
+        change: (positive ? "+" : "") + change.toFixed(2),
+        changePercent: (positive ? "+" : "") + changePercent + "%",
+        positive,
+      });
+      setMarketLoading(false);
+    } catch (err) {
+      console.error("[MARKET] Fetch error:", err);
+      setMarketLoading(false);
+    }
+  };
+
   const runScout = async () => {
     setScanning(true);
     await fetch("/api/scout", { method: "POST" });
@@ -337,6 +381,7 @@ export default function NewsFeed() {
     setMounted(true);
     loadArticles();
     loadClusters();
+    loadMarketData();
   }, []);
 
   if (loading) return <div className="text-ink p-12 font-serif text-xl">INITIALIZING...</div>
@@ -629,6 +674,112 @@ export default function NewsFeed() {
             <SectionLabel>Trend Clusters</SectionLabel>
             <div className="pt-2">
               {liveClusters.map((c) => <ClusterCard key={c.id} cluster={c} />)}
+            </div>
+
+            <div className="mt-6 border-t-2 border-ink pt-4">
+              <div className="border-b border-ink mb-3 pb-1">
+                <span
+                  style={{ fontFamily: "'DM Sans', sans-serif", color: "#1a1a1a" }}
+                  className="text-[10px] font-black tracking-[0.2em] uppercase"
+                >
+                  S&P 500 · SPY · 15-MIN DELAY
+                </span>
+              </div>
+
+              {marketLoading ? (
+                <div
+                  style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                  className="text-[10px] tracking-widest uppercase py-4 text-center"
+                >
+                  LOADING MARKET DATA...
+                </div>
+              ) : !marketMeta ? (
+                <div
+                  style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                  className="text-[10px] tracking-widest uppercase py-4 text-center"
+                >
+                  MARKET DATA UNAVAILABLE
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between mb-3">
+                    <div>
+                      <div
+                        style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }}
+                        className="text-2xl font-black leading-none"
+                      >
+                        ${marketMeta.price}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          color: marketMeta.positive ? "#16a34a" : "#e31212",
+                        }}
+                        className="text-[11px] font-black tracking-widest uppercase mt-1"
+                      >
+                        {marketMeta.change} ({marketMeta.changePercent})
+                      </div>
+                    </div>
+                    <div
+                      style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                      className="text-[9px] tracking-widest uppercase text-right"
+                    >
+                      {marketMeta.positive ? "▲ ADVANCING" : "▼ DECLINING"}
+                    </div>
+                  </div>
+
+                  <div className="relative w-full h-24">
+                    <svg
+                      viewBox={`0 0 ${marketData.length * 8} 80`}
+                      preserveAspectRatio="none"
+                      className="w-full h-full"
+                    >
+                      {(() => {
+                        const prices = marketData.map(d => d.price);
+                        const min = Math.min(...prices);
+                        const max = Math.max(...prices);
+                        const range = max - min || 1;
+                        const points = marketData
+                          .map((d, i) => `${i * 8},${80 - ((d.price - min) / range) * 70}`)
+                          .join(" ");
+                        const fillPoints = `0,80 ${points} ${(marketData.length - 1) * 8},80`;
+                        const lineColor = marketMeta.positive ? "#16a34a" : "#e31212";
+                        return (
+                          <>
+                            <polyline
+                              points={fillPoints}
+                              fill={marketMeta.positive ? "rgba(22,163,74,0.1)" : "rgba(227,18,18,0.1)"}
+                              stroke="none"
+                            />
+                            <polyline
+                              points={points}
+                              fill="none"
+                              stroke={lineColor}
+                              strokeWidth="1.5"
+                              strokeLinejoin="round"
+                            />
+                          </>
+                        );
+                      })()}
+                    </svg>
+                  </div>
+
+                  <div className="flex justify-between mt-1">
+                    <span
+                      style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                      className="text-[8px] tracking-widest uppercase"
+                    >
+                      {marketData[0]?.time}
+                    </span>
+                    <span
+                      style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                      className="text-[8px] tracking-widest uppercase"
+                    >
+                      {marketData[marketData.length - 1]?.time}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </aside>
 
