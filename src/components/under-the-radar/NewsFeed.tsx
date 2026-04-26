@@ -317,10 +317,10 @@ export default function NewsFeed() {
 
         {/* QUOTE */}
         <p 
-          style={{ fontFamily: "'DM Sans', sans-serif", color: "#1a1a1a" }} 
-          className="text-[9px] font-black tracking-[0.25em] uppercase text-center mb-3 opacity-60"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#1a1a1a" }} 
+          className="text-[11px] font-bold tracking-[0.15em] uppercase text-center mb-3 opacity-70"
         >
-          "Real-time monitoring of local government datasets provides the only true shield against institutional drift."
+          Real-time monitoring of local government datasets provides the only true shield against institutional drift.
         </p>
 
         {/* MASTHEAD */}
@@ -504,13 +504,6 @@ export default function NewsFeed() {
             <SectionLabel>Trend Clusters</SectionLabel>
             <div className="pt-2">
               {CLUSTERS.map((c) => <ClusterCard key={c.id} cluster={c} />)}
-            </div>
-
-            {/* Quote box */}
-            <div style={{ backgroundColor: "#1a1a1a" }} className="mt-6 p-4 border-l-4 border-[#e31212]">
-              <p style={{ fontFamily: "'EB Garamond', serif", color: "#f4f4f2" }} className="text-[11px] italic leading-relaxed">
-                "Real-time monitoring of local government datasets provides the only true shield against institutional drift."
-              </p>
             </div>
           </aside>
 
