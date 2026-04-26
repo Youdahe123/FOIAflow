@@ -156,7 +156,6 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
       <h4 className="font-serif text-[1rem] font-bold leading-tight text-ink mb-2">{cluster.label}</h4>
       <div className="flex gap-3 mb-2">
         {[
-          { val: cluster.jurisdictionCount, label: "locations" },
           { val: cluster.itemCount,         label: "articles" },
           { val: cluster.daySpan,     label: "days active" },
         ].map(({ val, label }) => (
@@ -239,6 +238,10 @@ export default function NewsFeed() {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [liveClusters, setLiveClusters] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const loadArticles = async () => {
     const { data, error } = await supabase
@@ -249,6 +252,63 @@ export default function NewsFeed() {
     if (error) console.error("[NewsFeed] Fetch error:", error);
     if (data) setArticles(data);
     setLoading(false);
+  };
+
+  const loadClusters = async () => {
+    const { data, error } = await supabase
+      .from("utr_clusters")
+      .select("*")
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("[CLUSTERS] Fetch error:", error);
+      return;
+    }
+
+    if (data) {
+      const grouped: { [key: string]: any[] } = {};
+      data.forEach((cluster) => {
+        if (!grouped[cluster.category]) grouped[cluster.category] = [];
+        grouped[cluster.category].push(cluster);
+      });
+
+      const clusters = Object.entries(grouped).map(([category, items]) => {
+        const latest = new Date(items[0].created_at);
+        const oldest = new Date(items[items.length - 1].created_at);
+        const daySpan = Math.ceil((latest.getTime() - oldest.getTime()) / (1000 * 60 * 60 * 24));
+        
+        return {
+          id: category,
+          label: `${category} ACTIVITY`,
+          category,
+          itemCount: items.length,
+          daySpan: daySpan || 1,
+          delta: `+${items.length} items`,
+          source_url: items[0].source_url
+        };
+      });
+
+      setLiveClusters(clusters.slice(0, 6));
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    const { data, error } = await supabase
+      .from("utr_clusters")
+      .select("*")
+      .or(`title.ilike.%${searchQuery}%, summary.ilike.%${searchQuery}%`)
+      .limit(20);
+    
+    if (error) console.error("[SEARCH] error:", error);
+    if (data) setSearchResults(data);
+    setSearching(false);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
   };
 
   const runScout = async () => {
@@ -276,6 +336,7 @@ export default function NewsFeed() {
   useEffect(() => {
     setMounted(true);
     loadArticles();
+    loadClusters();
   }, []);
 
   if (loading) return <div className="text-ink p-12 font-serif text-xl">INITIALIZING...</div>
@@ -317,7 +378,7 @@ export default function NewsFeed() {
 
         {/* QUOTE */}
         <p 
-          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#1a1a1a" }} 
+          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#000000" }} 
           className="text-[11px] font-bold tracking-[0.15em] uppercase text-center mb-3 opacity-70"
         >
           Real-time monitoring of local government datasets provides the only true shield against institutional drift.
@@ -353,6 +414,70 @@ export default function NewsFeed() {
 
           {/* COL 1: Main Feed */}
           <main className="px-6">
+            {/* SEARCH BAR */}
+            {!searchResults.length && (
+              <div className="mb-6 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Search clusters..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  className="flex-1 px-3 py-2 border-2 border-[#1a1a1a] text-[11px] font-bold tracking-widest uppercase focus:outline-none"
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={searching}
+                  style={{ fontFamily: "'DM Sans', sans-serif", backgroundColor: "#e31212" }}
+                  className="px-4 py-2 text-white text-[10px] font-black tracking-[0.2em] uppercase hover:bg-[#c10e0e] transition-colors disabled:opacity-50"
+                >
+                  {searching ? "SEARCHING..." : "SEARCH"}
+                </button>
+              </div>
+            )}
+
+            {/* SEARCH RESULTS */}
+            {searchResults.length > 0 && (
+              <div className="mb-6 border-2 border-[#1a1a1a] p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-[0.2em] uppercase">
+                    {searchResults.length} Result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
+                  </span>
+                  <button
+                    onClick={clearSearch}
+                    style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }}
+                    className="text-[11px] font-black tracking-widest uppercase hover:underline"
+                  >
+                    CLEAR
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {searchResults.map((result) => (
+                    <article key={result.id} className="border-b border-[#1a1a1a] pb-3 last:border-b-0">
+                      <div className="flex items-start gap-2 mb-1">
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", backgroundColor: "#1a1a1a", color: "#f4f4f2" }} className="text-[8px] font-black px-1.5 py-0.5 tracking-widest uppercase">
+                          {result.category}
+                        </span>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[9px] font-black tracking-widest uppercase">
+                          {new Date(result.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <h4 style={{ fontFamily: "'Playfair Display', serif", color: "#1a1a1a" }} className="text-lg font-bold leading-tight">
+                        {result.source_url ? (
+                          <a href={result.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }} className="hover:underline">
+                            {result.title}
+                          </a>
+                        ) : (
+                          result.title
+                        )}
+                      </h4>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <SectionLabel accent>Latest Emerging Clusters</SectionLabel>
 
             {/* LEAD STORY */}
@@ -503,7 +628,7 @@ export default function NewsFeed() {
           <aside className="pl-5">
             <SectionLabel>Trend Clusters</SectionLabel>
             <div className="pt-2">
-              {CLUSTERS.map((c) => <ClusterCard key={c.id} cluster={c} />)}
+              {liveClusters.map((c) => <ClusterCard key={c.id} cluster={c} />)}
             </div>
           </aside>
 
