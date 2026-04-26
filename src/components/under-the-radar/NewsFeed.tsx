@@ -122,12 +122,22 @@ const TICKER_OUTLETS = [
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function FoiaButton({ label = "FILE FOIA REQUEST" }: { label?: string }) {
+function FoiaButton({ headline, jurisdiction }: { headline?: string; jurisdiction?: string }) {
+  const params = new URLSearchParams();
+  if (headline) params.set("topic", headline);
+  if (jurisdiction) params.set("jurisdiction", jurisdiction ?? "");
   return (
-    <button className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent text-newsprint font-sans text-[10px] font-black tracking-[0.15em] uppercase hover:bg-[#c10e0e] transition-colors">
-      <FileText size={10} />
-      {label}
-    </button>
+    <a
+      href={`/requests/new?${params.toString()}`}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 font-sans text-[10px] font-black tracking-[0.15em] uppercase text-newsprint hover:opacity-90 transition-opacity"
+      style={{ backgroundColor: "#e31212" }}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      FILE FOIA
+    </a>
   );
 }
 
@@ -172,7 +182,13 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
       </div>
       <div className="flex items-center justify-between">
         <span className="font-sans text-[9px] text-accent font-black">{cluster.delta}</span>
-        <FoiaButton label="FOIA →" />
+        <a
+          href={`/requests/new?topic=${encodeURIComponent(cluster.label)}`}
+          className="inline-flex items-center gap-1.5 px-2 py-1 font-sans text-[9px] font-black tracking-widest uppercase text-newsprint"
+          style={{ backgroundColor: "#e31212" }}
+        >
+          FOIA →
+        </a>
       </div>
     </article>
   );
@@ -258,7 +274,21 @@ export default function NewsFeed() {
       .order("created_at", { ascending: false })
       .limit(10);
     if (error) console.error("[NewsFeed] Fetch error:", error);
-    if (data) setArticles(data);
+    if (data) {
+      const clean = data.filter((a: any) => {
+        const title = (a.title ?? "").toLowerCase();
+        const summary = (a.summary ?? "").toLowerCase();
+        const url = (a.source_url ?? "").toLowerCase();
+        if (url.endsWith(".pdf")) return false;
+        if (title.startsWith("[pdf]")) return false;
+        if (title.includes("at a glance") && title.includes("pension")) return false;
+        if (title.includes("bada-boom") || title.includes("joke")) return false;
+        if (summary.startsWith("......")) return false;
+        if (title.length < 10) return false;
+        return true;
+      });
+      setArticles(clean);
+    }
     setLoading(false);
   };
 
@@ -310,7 +340,17 @@ export default function NewsFeed() {
       .limit(20);
     
     if (error) console.error("[SEARCH] error:", error);
-    if (data) setSearchResults(data);
+    if (data) {
+      const cleanSearch = data.filter((a: any) => {
+        const title = (a.title ?? "").toLowerCase();
+        const url = (a.source_url ?? "").toLowerCase();
+        if (url.endsWith(".pdf")) return false;
+        if (title.startsWith("[pdf]")) return false;
+        if (title.length < 10) return false;
+        return true;
+      });
+      setSearchResults(cleanSearch);
+    }
     setSearching(false);
   };
 
@@ -331,7 +371,7 @@ export default function NewsFeed() {
         const isRateLimit = note && note.includes("API");
         const now = new Date();
         const day = now.getUTCDay();
-        const hour = now.getUTCHour();
+        const hour = now.getUTCHours();
         const isWeekend = day === 0 || day === 6;
         const isAfterHours = hour < 13 || hour >= 21;
 
@@ -444,8 +484,8 @@ export default function NewsFeed() {
 
         {/* QUOTE */}
         <p 
-          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#000000" }} 
-          className="text-[11px] font-bold tracking-[0.15em] uppercase text-center mb-3 opacity-70"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#000000", opacity: 1 }} 
+          className="text-[11px] font-bold tracking-[0.15em] uppercase text-center mb-3"
         >
           Real-time monitoring of local government datasets provides the only true shield against institutional drift.
         </p>
@@ -569,7 +609,7 @@ export default function NewsFeed() {
                     )}
                   </h2>
                   <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-[1.05rem] leading-relaxed mb-4">
-                    {lead.summary}
+                    {(lead.summary ?? "").split("| Source:")[0].trim()}
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -577,7 +617,7 @@ export default function NewsFeed() {
                         {new Date(lead.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    <FoiaButton />
+                    <FoiaButton headline={lead.title} />
                   </div>
                 </article>
               );
@@ -597,12 +637,12 @@ export default function NewsFeed() {
                         item.title
                       )}
                     </h3>
-                    <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-sm leading-snug mb-3">{item.summary}</p>
+                    <p style={{ fontFamily: "'EB Garamond', serif", color: "#1a1a1a" }} className="text-sm leading-snug mb-3">{(item.summary ?? "").split("| Source:")[0].trim()}</p>
                     <div className="flex items-center justify-between">
                       <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }} className="text-[10px] font-black tracking-widest uppercase">
                         {new Date(item.created_at).toLocaleDateString()}
                       </span>
-                      <FoiaButton />
+                      <FoiaButton headline={item.title} />
                     </div>
                     {(() => {
                       const similar = findSimilarStories(item, articles);
@@ -683,7 +723,7 @@ export default function NewsFeed() {
                         );
                       })()}
                     </div>
-                    <FoiaButton />
+                    <FoiaButton headline={item.title} />
                   </article>
                 ))}
               </div>
