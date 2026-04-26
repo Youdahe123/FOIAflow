@@ -7,13 +7,26 @@ const supabase = createClient(
 );
 
 const QUERIES = [
-  "underreported local government corruption 2026",
-  "investigative journalism exclusive 2026 unreported",
-  "humanitarian crisis ignored mainstream media 2026",
-  "whistleblower government cover-up 2026",
-  "missing persons cold case breakthrough 2026",
-  "local police misconduct unreported 2026",
-  "corporate fraud environmental cover-up 2026",
+  "unreported local government corruption investigation 2026",
+  "whistleblower federal agency retaliation 2026",
+  "humanitarian crisis ignored western media 2026",
+  "missing persons cold case new evidence 2026",
+  "police misconduct cover-up local department 2026",
+  "corporate environmental violation unreported 2026",
+  "indigenous rights violations underreported 2026",
+  "government surveillance program exposed 2026",
+  "prison conditions abuse unreported 2026",
+  "voting rights suppression local 2026",
+  "pharmaceutical fraud unreported deaths 2026",
+  "immigration detention abuse 2026",
+  "public school funding corruption 2026",
+  "water contamination local government ignored 2026",
+  "eminent domain abuse low income community 2026",
+  "journalist silenced threatened 2026",
+  "military contractor fraud unreported 2026",
+  "housing authority corruption displacement 2026",
+  "nonprofit fraud charity scam investigation 2026",
+  "border patrol misconduct unreported 2026",
 ];
 
 async function tavilySearch(query: string) {
