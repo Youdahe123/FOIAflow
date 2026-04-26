@@ -156,13 +156,13 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
       <h4 className="font-serif text-[1rem] font-bold leading-tight text-ink mb-2">{cluster.label}</h4>
       <div className="flex gap-3 mb-2">
         {[
-          { val: cluster.jurisdictionCount, label: "jurisdictions" },
-          { val: cluster.itemCount,         label: "items" },
-          { val: `${cluster.daySpan}d`,     label: "span" },
+          { val: cluster.jurisdictionCount, label: "locations" },
+          { val: cluster.itemCount,         label: "articles" },
+          { val: cluster.daySpan,     label: "days active" },
         ].map(({ val, label }) => (
           <div key={label} className="text-center">
             <div className="font-serif text-xl font-black text-ink leading-none">{val}</div>
-            <div className="font-sans text-[8px] tracking-widest uppercase text-muted">{label}</div>
+            <div className="font-sans text-[8px] tracking-widest uppercase text-muted mt-0.5">{label}</div>
           </div>
         ))}
       </div>
@@ -258,6 +258,21 @@ export default function NewsFeed() {
     setScanning(false);
   };
 
+  const findSimilarStories = (article: any, allArticles: any[]) => {
+    const stopWords = new Set(['the','and','for','that','this','with','from','have','been','were','they','their','into','about','which','when','will','said','also','more','other','some','such','than','then','there','these','would','could','should','after','being','through']);
+    const words = article.title
+      .toLowerCase()
+      .split(' ')
+      .filter((w: string) => w.length > 4 && !stopWords.has(w));
+    return allArticles.filter((a: any) => {
+      if (a.id === article.id || a.title === article.title) return false;
+      const matchCount = words.filter((w: string) => 
+        a.title.toLowerCase().includes(w)
+      ).length;
+      return matchCount >= 2;
+    }).slice(0, 2);
+  };
+
   useEffect(() => {
     setMounted(true);
     loadArticles();
@@ -300,6 +315,14 @@ export default function NewsFeed() {
 
       <div className="max-w-[1400px] mx-auto px-6 py-6">
 
+        {/* QUOTE */}
+        <p 
+          style={{ fontFamily: "'DM Sans', sans-serif", color: "#1a1a1a" }} 
+          className="text-[9px] font-black tracking-[0.25em] uppercase text-center mb-3 opacity-60"
+        >
+          "Real-time monitoring of local government datasets provides the only true shield against institutional drift."
+        </p>
+
         {/* MASTHEAD */}
         <header className="text-center mb-6 border-b-[3px] border-[#1a1a1a] pb-4">
           <h1
@@ -325,19 +348,11 @@ export default function NewsFeed() {
           </span>
         </div>
 
-        {/* MAIN 12-COL GRID */}
-        <div className="grid grid-cols-12 gap-0 divide-x-2 divide-[#1a1a1a]">
+        {/* MAIN 2-COL GRID */}
+        <div className="grid grid-cols-[1fr_280px] gap-0 divide-x-2 divide-[#1a1a1a">
 
-          {/* COL 1: Investigators */}
-          <aside className="col-span-2 pr-5">
-            <SectionLabel>The Investigators</SectionLabel>
-            <div className="pt-3">
-              {INVESTIGATORS.map((inv) => <InvestigatorCard key={inv.id} inv={inv} />)}
-            </div>
-          </aside>
-
-          {/* COL 2: Main Feed */}
-          <main className="col-span-7 px-6">
+          {/* COL 1: Main Feed */}
+          <main className="px-6">
             <SectionLabel accent>Latest Emerging Clusters</SectionLabel>
 
             {/* LEAD STORY */}
@@ -398,6 +413,32 @@ export default function NewsFeed() {
                       </span>
                       <FoiaButton />
                     </div>
+                    {(() => {
+                      const similar = findSimilarStories(item, articles);
+                      if (similar.length === 0) return null;
+                      return (
+                        <div 
+                          className="mt-2 border-l-2 pl-2"
+                          style={{ borderColor: "#e31212" }}
+                        >
+                          <span 
+                            style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} 
+                            className="text-[9px] font-black tracking-widest uppercase flex items-center gap-1"
+                          >
+                            ◆ PATTERN DETECTED — {similar.length} related story{similar.length > 1 ? 'ies' : ''} in feed
+                          </span>
+                          {similar.map((s: any) => (
+                            <p 
+                              key={s.source_url} 
+                              style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                              className="text-[9px] truncate mt-0.5"
+                            >
+                              → {s.title}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </article>
                 ))}
               </div>
@@ -424,6 +465,32 @@ export default function NewsFeed() {
                           {new Date(item.created_at).toLocaleDateString()}
                         </span>
                       </div>
+                      {(() => {
+                        const similar = findSimilarStories(item, articles);
+                        if (similar.length === 0) return null;
+                        return (
+                          <div 
+                            className="mt-2 border-l-2 pl-2"
+                            style={{ borderColor: "#e31212" }}
+                          >
+                            <span 
+                              style={{ fontFamily: "'DM Sans', sans-serif", color: "#e31212" }} 
+                              className="text-[9px] font-black tracking-widest uppercase flex items-center gap-1"
+                            >
+                              ◆ PATTERN DETECTED — {similar.length} related story{similar.length > 1 ? 'ies' : ''} in feed
+                            </span>
+                            {similar.map((s: any) => (
+                              <p 
+                                key={s.source_url} 
+                                style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+                                className="text-[9px] truncate mt-0.5"
+                              >
+                                → {s.title}
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <FoiaButton />
                   </article>
@@ -432,23 +499,11 @@ export default function NewsFeed() {
             )}
           </main>
 
-          {/* COL 3: Cluster Rail */}
-          <aside className="col-span-3 pl-5">
+          {/* COL 2: Cluster Rail */}
+          <aside className="pl-5">
             <SectionLabel>Trend Clusters</SectionLabel>
             <div className="pt-2">
               {CLUSTERS.map((c) => <ClusterCard key={c.id} cluster={c} />)}
-            </div>
-
-            {/* Scout Button */}
-            <div style={{ backgroundColor: "#1a1a1a" }} className="mt-6 p-4">
-              <button
-                onClick={runScout}
-                disabled={scanning}
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-                className="w-full bg-accent text-newsprint font-black tracking-[0.2em] uppercase py-3 disabled:opacity-50"
-              >
-                {scanning ? "SCANNING..." : "RUN SCOUT"}
-              </button>
             </div>
 
             {/* Quote box */}
@@ -456,21 +511,6 @@ export default function NewsFeed() {
               <p style={{ fontFamily: "'EB Garamond', serif", color: "#f4f4f2" }} className="text-[11px] italic leading-relaxed">
                 "Real-time monitoring of local government datasets provides the only true shield against institutional drift."
               </p>
-            </div>
-
-            {/* Trend ticker sub-stats */}
-            <div className="mt-6">
-              <SectionLabel>Signal Strength</SectionLabel>
-              {[
-                { label: "Domestic / Land",    val: "+4.2%", hot: true },
-                { label: "Muni / Surveillance", val: "+8.1%", hot: true },
-                { label: "Public / Utility",    val: "+1.4%", hot: false },
-              ].map((item) => (
-                <div key={item.label} className="flex justify-between items-center border-b border-[#1a1a1a] py-2">
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: "#1a1a1a" }} className="text-[10px] font-black tracking-widest uppercase">{item.label}</span>
-                  <span style={{ fontFamily: "'DM Sans', sans-serif", color: item.hot ? "#e31212" : "#5a5a5a" }} className="text-[10px] font-black">{item.val}</span>
-                </div>
-              ))}
             </div>
           </aside>
 
