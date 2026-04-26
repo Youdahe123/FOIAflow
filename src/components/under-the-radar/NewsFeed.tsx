@@ -154,16 +154,21 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
         )}
       </div>
       <h4 className="font-serif text-[1rem] font-bold leading-tight text-ink mb-2">{cluster.label}</h4>
+      <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#5a5a5a" }}
+         className="text-[9px] tracking-wide uppercase mt-1 mb-2">
+        {cluster.itemCount === 1 ? "1 article indexed" : `${cluster.itemCount} articles indexed`} · {cluster.trendScore === "emerging" ? "Rising pattern" : "Stable pattern"}
+      </p>
       <div className="flex gap-3 mb-2">
-        {[
-          { val: cluster.itemCount,         label: "articles" },
-          { val: cluster.daySpan,     label: "days active" },
-        ].map(({ val, label }) => (
-          <div key={label} className="text-center">
-            <div className="font-serif text-xl font-black text-ink leading-none">{val}</div>
-            <div className="font-sans text-[8px] tracking-widest uppercase text-muted mt-0.5">{label}</div>
+        <div className="text-center border border-ink/20 p-2">
+          <div className="font-serif text-xl font-black text-ink leading-none">{cluster.itemCount}</div>
+          <div className="font-sans text-[8px] tracking-widest uppercase text-muted mt-0.5">stories found</div>
+        </div>
+        <div className="text-center border border-ink/20 p-2">
+          <div className="font-serif text-xl font-black text-ink leading-none">
+            {cluster.daySpan === 0 ? "Today" : cluster.daySpan + "d ago"}
           </div>
-        ))}
+          <div className="font-sans text-[8px] tracking-widest uppercase text-muted mt-0.5">last detected</div>
+        </div>
       </div>
       <div className="flex items-center justify-between">
         <span className="font-sans text-[9px] text-accent font-black">{cluster.delta}</span>
@@ -322,7 +327,23 @@ export default function NewsFeed() {
       const data = await res.json();
       const timeSeries = data["Time Series (5min)"];
       if (!timeSeries) {
-        console.error("[MARKET] No data returned:", data);
+        const note = data["Note"] ?? data["Information"] ?? null;
+        const isRateLimit = note && note.includes("API");
+        const now = new Date();
+        const day = now.getUTCDay();
+        const hour = now.getUTCHour();
+        const isWeekend = day === 0 || day === 6;
+        const isAfterHours = hour < 13 || hour >= 21;
+
+        if (isWeekend) {
+          setMarketMeta({ price: "—", change: "Market Closed", changePercent: "Weekend", positive: true });
+        } else if (isAfterHours) {
+          setMarketMeta({ price: "—", change: "After Hours", changePercent: "Opens 9:30AM EST", positive: true });
+        } else if (isRateLimit) {
+          setMarketMeta({ price: "—", change: "Rate Limited", changePercent: "25 calls/day max", positive: true });
+        } else {
+          setMarketMeta({ price: "—", change: "Unavailable", changePercent: "Try again later", positive: true });
+        }
         setMarketLoading(false);
         return;
       }
@@ -464,7 +485,7 @@ export default function NewsFeed() {
               <div className="mb-6 flex gap-2">
                 <input
                   type="text"
-                  placeholder="Search clusters..."
+                  placeholder="Search by keyword, topic, location, or outlet..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
