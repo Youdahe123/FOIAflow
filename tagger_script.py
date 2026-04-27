@@ -195,13 +195,15 @@ def process_batch(input_file, output_file,
     
     with open(input_file, 'r',
               encoding='utf-8',
-              errors='replace') as f:
+              errors='ignore') as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader):
             if i < start:
                 continue
             if i >= start + batch:
                 break
+            if i % 100 == 0:
+                print(f'Processing row {i}...')
             
             name = (row.get('NAME') or 
                    row.get('UNIT_NAME') or
@@ -235,7 +237,7 @@ def process_batch(input_file, output_file,
 
 # RUN FIRST BATCH OF 2000:
 process_batch(
-    'census_agencies.csv',
+    '2022_Gaz_place_national.txt',
     'batch_001.json',
     start=0,
     batch=2000
