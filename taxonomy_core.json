@@ -3,7 +3,7 @@
   "total_sectors": 7,
   "sectors": [
     "LAND_AND_PROPERTY",
-    "PUBLIC_SAFETY_AND_JUSTICE", 
+    "PUBLIC_SAFETY_AND_JUSTICE",
     "FINANCE_AND_CORPORATE",
     "ENVIRONMENT_AND_ENERGY",
     "HEALTH_AND_HUMAN_SERVICES",
@@ -11,33 +11,12 @@
     "TRANSPORTATION_AND_INFRASTRUCTURE"
   ],
   "trigger_keywords": {
-    "LAND_AND_PROPERTY": ["land","property",
-      "deed","zoning","parcel","assessor",
-      "recorder","easement","title","plat",
-      "housing","rent","redevelopment"],
-    "PUBLIC_SAFETY_AND_JUSTICE": ["police",
-      "sheriff","court","justice","corrections",
-      "fire","emergency","probation","parole",
-      "jail","prison","attorney","defender"],
-    "FINANCE_AND_CORPORATE": ["finance","bank",
-      "revenue","tax","treasury","budget",
-      "audit","securities","insurance",
-      "procurement","contract","economic"],
-    "ENVIRONMENT_AND_ENERGY": ["environment",
-      "energy","water","air","soil","conservation",
-      "climate","pollution","wildlife","forest",
-      "nuclear","utility","waste","mining"],
-    "HEALTH_AND_HUMAN_SERVICES": ["health",
-      "hospital","medical","mental","social",
-      "welfare","medicaid","pharmacy","nursing",
-      "disability","aging","child","family"],
-    "SPORTS_MEDIA_AND_CULTURE": ["sport",
-      "athletic","media","broadcast","film",
-      "arts","culture","museum","library",
-      "gaming","casino","lottery","tourism"],
-    "TRANSPORTATION_AND_INFRASTRUCTURE": [
-      "transportation","highway","road","bridge",
-      "transit","airport","port","rail","traffic",
-      "aviation","maritime","infrastructure"]
+    "LAND_AND_PROPERTY": ["land","property","deed","zoning","parcel","assessor","recorder","easement","title","plat","housing","rent","redevelopment"],
+    "PUBLIC_SAFETY_AND_JUSTICE": ["police","sheriff","court","justice","corrections","fire","emergency","probation","parole","jail","prison","attorney","defender"],
+    "FINANCE_AND_CORPORATE": ["finance","bank","revenue","tax","treasury","budget","audit","securities","insurance","procurement","contract","economic"],
+    "ENVIRONMENT_AND_ENERGY": ["environment","energy","water","air","soil","conservation","climate","pollution","wildlife","forest","nuclear","utility","waste","mining"],
+    "HEALTH_AND_HUMAN_SERVICES": ["health","hospital","medical","mental","social","welfare","medicaid","pharmacy","nursing","disability","aging","child","family"],
+    "SPORTS_MEDIA_AND_CULTURE": ["sport","athletic","media","broadcast","film","arts","culture","museum","library","gaming","casino","lottery","tourism"],
+    "TRANSPORTATION_AND_INFRASTRUCTURE": ["transportation","highway","road","bridge","transit","airport","port","rail","traffic","aviation","maritime","infrastructure"]
   }
 }
