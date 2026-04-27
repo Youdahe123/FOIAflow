@@ -443,6 +443,17 @@ export default function NewsFeed() {
     loadArticles();
     loadClusters();
     loadMarketData();
+    
+    fetch('/api/scout')
+      .then(res => res.json())
+      .then(data => {
+        if (data.inserted > 0) {
+          console.log('[UTR] Scout found new articles:', data.inserted);
+          loadArticles();
+          loadClusters();
+        }
+      })
+      .catch(err => console.error('[UTR] Background scout error:', err));
   }, []);
 
   if (loading) return <div className="text-ink p-12 font-serif text-xl">INITIALIZING...</div>
@@ -511,7 +522,7 @@ export default function NewsFeed() {
         <div style={{ backgroundColor: "#1a1a1a", color: "#f4f4f2" }} className="flex items-center gap-3 px-4 py-2.5 mb-6">
           <AlertTriangle size={14} style={{ color: "#e31212" }} />
           <span style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[10px] font-black tracking-[0.15em] uppercase">
-            {articles.length} Clusters Active &nbsp;·&nbsp; {articles.length} Items Indexed &nbsp;·&nbsp; System Status: MONITORING
+            {articles.length} CLUSTERS ACTIVE &nbsp;·&nbsp; {articles.length} ITEMS INDEXED &nbsp;·&nbsp; System Status: MONITORING
           </span>
         </div>
 
