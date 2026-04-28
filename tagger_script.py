@@ -40,7 +40,7 @@ for _, row in batch.iterrows():
         "name": name,
         "abbreviation": "",
         "level": categorize(name),
-        "jurisdiction": f"{row.get('CITY', '')}, {row.get('STATE', '')}"
+        "jurisdiction": f"{row.get('CITY', '')} {row.get('STATE', '')}"
     })
 
 import csv
