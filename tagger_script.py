@@ -13,7 +13,30 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 df = pd.read_csv(INPUT_FILE, low_memory=False)
 
-batch = df.iloc[START_ROW:START_ROW + BATCH_SIZE]
+for start in range(0, len(df), BATCH_SIZE):
+    batch = df.iloc[start:start + BATCH_SIZE]
+
+    records = []
+
+    for _, row in batch.iterrows():
+        name = str(row.get("UNIT_NAME", "")).strip()
+
+        if not name or name == "nan":
+            continue
+
+        records.append({
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "abbreviation": "",
+            "level": categorize(name),
+            "jurisdiction": f"{row.get('CITY', '')} {row.get('STATE', '')}"
+        })
+
+    print(f"Inserting batch starting at {start} ({len(records)} records)...")
+
+    for i in range(0, len(records), 500):
+        chunk = records[i:i + 500]
+        supabase.table("agencies").insert(chunk).execute()
 
 def categorize(name):
     name = str(name).lower()
