@@ -1,14 +1,15 @@
 import pandas as pd
+import json
+import uuid
 
-df = pd.read_csv("2022_Individual_Unit_File - General Purpose.csv", low_memory=False)
+INPUT_FILE = "2022_Individual_Unit_File - General Purpose.csv"
+OUTPUT_FILE = "batch_001.json"
+BATCH_SIZE = 2000
+START_ROW = 0  # change this later
 
-print("\nCOLUMNS:")
-print(df.columns.tolist())
+df = pd.read_csv(INPUT_FILE, low_memory=False)
 
-print("\nFIRST 5 ROWS:")
-print(df.head())
-
-exit()
+batch = df.iloc[START_ROW:START_ROW + BATCH_SIZE]
 
 def categorize(name):
     name = str(name).lower()
