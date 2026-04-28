@@ -30,7 +30,7 @@ def categorize(name):
 records = []
 
 for _, row in batch.iterrows():
-    name = str(row.get("Agency Name", "")).strip()
+    name = str(row.get("AGENCY_NAME", "")).strip()
 
     if not name or name == "nan":
         continue
