@@ -43,7 +43,18 @@ for _, row in batch.iterrows():
         "jurisdiction": f"{row.get('CITY', '')}, {row.get('STATE', '')}"
     })
 
-with open(OUTPUT_FILE, "w") as f:
-    json.dump(records, f, indent=2)
+import csv
+
+csv_file = OUTPUT_FILE.replace(".json", ".csv")
+
+with open(csv_file, "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(
+        f,
+        fieldnames=["id", "name", "abbreviation", "level", "jurisdiction"]
+    )
+    writer.writeheader()
+    writer.writerows(records)
+
+print(f"Saved {len(records)} records to {csv_file}")
 
 print(f"Saved {len(records)} records to {OUTPUT_FILE}")
