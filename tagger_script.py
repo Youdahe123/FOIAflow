@@ -40,7 +40,7 @@ for _, row in batch.iterrows():
         "name": name,
         "abbreviation": "",
         "level": categorize(name),
-        "jurisdiction": "United States"
+        "jurisdiction": f"{row.get('CITY', '')}, {row.get('STATE', '')}"
     })
 
 with open(OUTPUT_FILE, "w") as f:
