@@ -1,11 +1,15 @@
 import pandas as pd
-import json
 import uuid
+from supabase import create_client
 
 INPUT_FILE = "2022_Individual_Unit_File - General Purpose.csv"
 OUTPUT_FILE = "batch_001.json"
 BATCH_SIZE = 2000
 START_ROW = 0  # change this later
+SUPABASE_URL = "https://tmepkdippikertlftctl.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZXBrZGlwcGlrZXJ0bGZ0Y3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTcyNjgsImV4cCI6MjA5MDM5MzI2OH0.nCBMnq5AlWNnRibrWC0XMryqMbB2-87qxSuWSQSyVHg"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 df = pd.read_csv(INPUT_FILE, low_memory=False)
 
@@ -47,14 +51,14 @@ import csv
 
 csv_file = OUTPUT_FILE.replace(".json", ".csv")
 
-with open(csv_file, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(
-        f,
-        fieldnames=["id", "name", "abbreviation", "level", "jurisdiction"]
-    )
-    writer.writeheader()
-    writer.writerows(records)
+BATCH_INSERT_SIZE = 500
 
-print(f"Saved {len(records)} records to {csv_file}")
+print(f"Inserting {len(records)} records into Supabase...")
+
+for i in range(0, len(records), BATCH_INSERT_SIZE):
+    chunk = records[i:i + BATCH_INSERT_SIZE]
+    supabase.table("agencies").insert(chunk).execute()
+
+print(f"Finished inserting {len(records)} records.")
 
 print(f"Saved {len(records)} records to {OUTPUT_FILE}")
