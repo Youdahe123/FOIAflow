@@ -7,11 +7,12 @@ from supabase import create_client
 # ==============================
 
 INPUT_FILE = "accredited_police.csv"
-BATCH_SIZE = 2000
-INSERT_CHUNK_SIZE = 500
+SUPABASE_URL = "YOUR_SUPABASE_URL"
+SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"
 
-SUPABASE_URL = "https://tmepkdippikertlftctl.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZXBrZGlwcGlrZXJ0bGZ0Y3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTcyNjgsImV4cCI6MjA5MDM5MzI2OH0.nCBMnq5AlWNnRibrWC0XMryqMbB2-87qxSuWSQSyVHg"
+LEVEL = "LAW_ENFORCEMENT"
+
+BATCH_SIZE = 500
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -19,65 +20,41 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # LOAD DATA
 # ==============================
 
-df = pd.read_csv(INPUT_FILE, low_memory=False)
+df = pd.read_csv(INPUT_FILE)
 
-# Remove duplicates at source level
-df = df.drop_duplicates(subset=["UNIT_NAME"])
+print("Loaded rows:", len(df))
 
-print(f"Total rows after dedupe: {len(df)}")
+records = []
+
+for _, row in df.iterrows():
+    name = str(row.get("Agency Name", "")).strip()
+
+    if not name or name.lower() == "nan":
+        continue
+
+    # Clean names
+    name = name.replace(" PD", " Police Department")
+    name = name.replace(" SO", " Sheriff's Office")
+
+    county = str(row.get("County", "")).strip()
+
+    records.append({
+        "id": str(uuid.uuid4()),
+        "name": name.title(),
+        "abbreviation": "",
+        "level": LEVEL,
+        "jurisdiction": f"{county.title()} County, NY"
+    })
+
+print(f"Prepared {len(records)} records")
 
 # ==============================
-# CATEGORY FUNCTION (MUST BE ABOVE LOOP)
+# INSERT
 # ==============================
 
-def categorize(name):
-    name = str(name).lower()
+for i in range(0, len(records), BATCH_SIZE):
+    chunk = records[i:i+BATCH_SIZE]
+    supabase.table("agencies").upsert(chunk).execute()
+    print(f"Inserted {i + len(chunk)} / {len(records)}")
 
-    if "police" in name or "sheriff" in name:
-        return "LAW_ENFORCEMENT"
-    elif "county" in name:
-        return "COUNTY"
-    elif "city" in name:
-        return "CITY"
-    elif "school" in name or "district" in name:
-        return "EDUCATION"
-    elif "department" in name:
-        return "GOVERNMENT"
-    else:
-        return "UNCATEGORIZED"
-
-# ==============================
-# MAIN INGEST LOOP
-# ==============================
-
-for start in range(0, len(df), BATCH_SIZE):
-    batch = df.iloc[start:start + BATCH_SIZE]
-
-    records = []
-
-    for _, row in batch.iterrows():
-        name = str(row.get("UNIT_NAME", "")).strip()
-
-        if not name or name == "nan":
-            continue
-
-        records.append({
-            "id": str(uuid.uuid4()),
-            "name": name,
-            "abbreviation": "",
-            "level": categorize(name),
-            "jurisdiction": f"{row.get('County', ).title()} County, NY"
-        })
-
-    print(f"\n🚀 Inserting batch starting at {start} ({len(records)} records)...")
-
-    # Insert in chunks to avoid API limits
-    for i in range(0, len(records), INSERT_CHUNK_SIZE):
-        chunk = records[i:i + INSERT_CHUNK_SIZE]
-
-        try:
-            supabase.table("agencies").upsert(chunk).execute()
-        except Exception as e:
-            print(f"❌ Error inserting chunk starting at index {i}: {e}")
-
-print("\n✅ DONE: All data processed and inserted.")
+print("DONE")
