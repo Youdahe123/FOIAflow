@@ -6,7 +6,7 @@ from supabase import create_client
 # CONFIG
 # ==============================
 
-INPUT_FILE = "2022_Individual_Unit_File - General Purpose.csv"
+INPUT_FILE = "accredited_police.csv"
 BATCH_SIZE = 2000
 INSERT_CHUNK_SIZE = 500
 
