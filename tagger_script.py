@@ -7,7 +7,7 @@ import json
 # ==============================
 
 FILES = [
-    "BIA_Agency,_Regional,_and_Field_Offices.csv",
+    "BIA_Agency%2C_Regional%2C_and_Field_Offices.csv",
     "Currently_Accredited_Law_Enforcement_Agencies.csv"
 ]
 
