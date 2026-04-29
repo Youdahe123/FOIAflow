@@ -22,7 +22,7 @@ records = []
 for file in FILES:
     print(f"\nProcessing: {file}")
 
-    df = pd.read_csv(file, encoding="utf-8-sig", errors="ignore")
+    df = pd.read_csv(file, encoding="utf-8-sig", encoding_errors="ignore")
 
     print("Columns:", list(df.columns))
 
