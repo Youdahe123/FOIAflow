@@ -8,7 +8,8 @@ import json
 
 FILES = [
     "BIA_Agency%2C_Regional%2C_and_Field_Offices.csv",
-    "Currently_Accredited_Law_Enforcement_Agencies.csv"
+    "Currently_Accredited_Law_Enforcement_Agencies.csv",
+    "ccd_lea_029_2122_w_1a_071722.csv"
 ]
 
 OUTPUT_FILE = "batch_quality_layers.json"
@@ -73,7 +74,27 @@ for file in FILES:
                 "latitude": 0.0,
                 "longitude": 0.0
             })
+        # ==============================
+        # SCHOOL DISTRICTS (NCES)
+        # ==============================
+        elif "LEA_NAME" in df.columns:
+            name = str(row.get("LEA_NAME", "")).strip().title()
 
+            city = str(row.get("LCITY", "")).strip()
+            state = str(row.get("LSTATE", "")).strip()
+
+            if not name or name.lower() == "nan":
+                continue
+
+            records.append({
+                "id": str(uuid.uuid4()),
+                "name": name,
+                "abbreviation": "",
+                "level": "EDUCATION",
+                "jurisdiction": f"{city.title()} {state}",
+                "latitude": 0.0,
+                "longitude": 0.0
+            })
         else:
             print(f"⚠️ Skipping unknown format: {file}")
             break
