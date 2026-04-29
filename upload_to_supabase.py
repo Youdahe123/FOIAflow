@@ -27,7 +27,10 @@ print(f"Loaded {len(records)} records")
 
 for i in range(0, len(records), 500):
     chunk = records[i:i+500]
-    supabase.table("agencies").upsert(chunk).execute()
+    supabase.table("agencies").upsert(
+    chunk,
+    on_conflict="name,jurisdiction"
+).execute()
     print(f"Inserted {i + len(chunk)} / {len(records)}")
 
 print("DONE") 

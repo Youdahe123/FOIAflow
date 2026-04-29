@@ -32,7 +32,7 @@ for file in FILES:
         # BIA FILE LOGIC
         # ==============================
         if "OfficeName" in df.columns:
-            name = str(row.get("OfficeName", "")).strip()
+            name = str(row.get("OfficeName", "")).strip().title()
             state = str(row.get("State", "")).strip()
             lat = float(row.get("Latitude", 0.0) or 0.0)
             lon = float(row.get("Longitude", 0.0) or 0.0)
@@ -54,7 +54,7 @@ for file in FILES:
         # NY POLICE FILE LOGIC
         # ==============================
         elif "Agency Name" in df.columns:
-            name = str(row.get("Agency Name", "")).strip()
+            name = str(row.get("Agency Name", "")).strip().title()
             county = str(row.get("County", "")).strip()
 
             if not name or name.lower() == "nan":
