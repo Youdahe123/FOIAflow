@@ -66,7 +66,7 @@ for start in range(0, len(df), BATCH_SIZE):
             "name": name,
             "abbreviation": "",
             "level": categorize(name),
-            "jurisdiction": f"{row.get('CITY', '')} {row.get('STATE', '')}"
+            "jurisdiction": f"{row.get('County', ).title()} County, NY"
         })
 
     print(f"\n🚀 Inserting batch starting at {start} ({len(records)} records)...")
