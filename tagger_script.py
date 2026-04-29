@@ -1,61 +1,90 @@
 import pandas as pd
 import uuid
-from supabase import create_client
+import json
 
 # ==============================
-# CONFIG
+# FILES
 # ==============================
 
-INPUT_FILE = "INPUT_FILE = "police_national.csv"
-SUPABASE_URL = "https://tmepkdippikertlftctl.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZXBrZGlwcGlrZXJ0bGZ0Y3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTcyNjgsImV4cCI6MjA5MDM5MzI2OH0.nCBMnq5AlWNnRibrWC0XMryqMbB2-87qxSuWSQSyVHg"
+FILES = [
+    "BIA_Agency,_Regional,_and_Field_Offices.csv",
+    "Currently_Accredited_Law_Enforcement_Agencies.csv"
+]
 
-LEVEL = "LAW_ENFORCEMENT"
-
-BATCH_SIZE = 500
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# ==============================
-# LOAD DATA
-# ==============================
-
-df = pd.read_csv(INPUT_FILE)
-
-print("Loaded rows:", len(df))
+OUTPUT_FILE = "batch_quality_layers.json"
 
 records = []
 
-for _, row in df.iterrows():
-    name = str(row.get("AgencyFull", "")).strip()
-
-    if not name or name.lower() == "nan":
-        continue
-
-    # Clean names
-    name = name.replace(" PD", " Police Department")
-    name = name.replace(" SO", " Sheriff's Office")
-
-    city = str(row.get("City", "")).strip()
-state = str(row.get("State", "")).strip()
-
-    records.append({
-        "id": str(uuid.uuid4()),
-        "name": name.title(),
-        "abbreviation": "",
-        "level": LEVEL,
-        "jurisdiction": f"{city.title()} {state}"
-    })
-
-print(f"Prepared {len(records)} records")
-
 # ==============================
-# INSERT
+# PROCESS FILES
 # ==============================
 
-for i in range(0, len(records), BATCH_SIZE):
-    chunk = records[i:i+BATCH_SIZE]
-    supabase.table("agencies").upsert(chunk).execute()
-    print(f"Inserted {i + len(chunk)} / {len(records)}")
+for file in FILES:
+    print(f"\nProcessing: {file}")
 
-print("DONE")
+    df = pd.read_csv(file, encoding="utf-8-sig", errors="ignore")
+
+    print("Columns:", list(df.columns))
+
+    for _, row in df.iterrows():
+
+        # ==============================
+        # BIA FILE LOGIC
+        # ==============================
+        if "OfficeName" in df.columns:
+            name = str(row.get("OfficeName", "")).strip()
+            state = str(row.get("State", "")).strip()
+            lat = float(row.get("Latitude", 0.0) or 0.0)
+            lon = float(row.get("Longitude", 0.0) or 0.0)
+
+            if not name or name.lower() == "nan":
+                continue
+
+            records.append({
+                "id": str(uuid.uuid4()),
+                "name": name.title(),
+                "abbreviation": "",
+                "level": "FEDERAL",
+                "jurisdiction": state,
+                "latitude": lat,
+                "longitude": lon
+            })
+
+        # ==============================
+        # NY POLICE FILE LOGIC
+        # ==============================
+        elif "Agency Name" in df.columns:
+            name = str(row.get("Agency Name", "")).strip()
+            county = str(row.get("County", "")).strip()
+
+            if not name or name.lower() == "nan":
+                continue
+
+            # Clean names
+            name = name.replace(" PD", " Police Department")
+            name = name.replace(" SO", " Sheriff's Office")
+
+            records.append({
+                "id": str(uuid.uuid4()),
+                "name": name.title(),
+                "abbreviation": "",
+                "level": "LAW_ENFORCEMENT",
+                "jurisdiction": f"{county.title()} County, NY",
+                "latitude": 0.0,
+                "longitude": 0.0
+            })
+
+        else:
+            print(f"⚠️ Skipping unknown format: {file}")
+            break
+
+# ==============================
+# SAVE OUTPUT
+# ==============================
+
+print(f"\nTotal records prepared: {len(records)}")
+
+with open(OUTPUT_FILE, "w") as f:
+    json.dump(records, f, indent=2)
+
+print(f"Saved to {OUTPUT_FILE}")
