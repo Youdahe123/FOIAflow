@@ -6,7 +6,7 @@ from supabase import create_client
 # CONFIG
 # ==============================
 
-INPUT_FILE = "accredited_police.csv"
+INPUT_FILE = "INPUT_FILE = "police_national.csv"
 SUPABASE_URL = "https://tmepkdippikertlftctl.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZXBrZGlwcGlrZXJ0bGZ0Y3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTcyNjgsImV4cCI6MjA5MDM5MzI2OH0.nCBMnq5AlWNnRibrWC0XMryqMbB2-87qxSuWSQSyVHg"
 
@@ -27,7 +27,7 @@ print("Loaded rows:", len(df))
 records = []
 
 for _, row in df.iterrows():
-    name = str(row.get("Agency Name", "")).strip()
+    name = str(row.get("AgencyFull", "")).strip()
 
     if not name or name.lower() == "nan":
         continue
@@ -36,14 +36,15 @@ for _, row in df.iterrows():
     name = name.replace(" PD", " Police Department")
     name = name.replace(" SO", " Sheriff's Office")
 
-    county = str(row.get("County", "")).strip()
+    city = str(row.get("City", "")).strip()
+state = str(row.get("State", "")).strip()
 
     records.append({
         "id": str(uuid.uuid4()),
         "name": name.title(),
         "abbreviation": "",
         "level": LEVEL,
-        "jurisdiction": f"{county.title()} County, NY"
+        "jurisdiction": f"{city.title()} {state}"
     })
 
 print(f"Prepared {len(records)} records")
