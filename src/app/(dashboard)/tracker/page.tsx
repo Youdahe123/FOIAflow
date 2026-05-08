@@ -44,6 +44,17 @@ interface SnowdenAgency {
   website?: string;
   email?: string;
 }
+
+interface KanbanColumn {
+  id: string;
+  label: string;
+  statuses: RequestStatus[];
+  accent: string;
+  dotColor: string;
+}
+
+const COLUMNS: KanbanColumn[] = [
+  {
     id: "responded",
     label: "Responded",
     statuses: ["partial_response", "completed"],

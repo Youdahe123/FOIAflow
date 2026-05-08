@@ -84,6 +84,19 @@ const toolsNav: NavItem[] = [
       </svg>
     ),
   },
+  {
+    label: "UTR News",
+    href: "/utr-news",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+        <rect x="2" y="3" width="16" height="14" />
+        <line x1="5" y1="7" x2="15" y2="7" />
+        <line x1="5" y1="10" x2="15" y2="10" />
+        <line x1="5" y1="13" x2="10" y2="13" />
+        <rect x="2" y="3" width="3" height="14" />
+      </svg>
+    ),
+  },
 ];
 
 const accountNav: NavItem[] = [

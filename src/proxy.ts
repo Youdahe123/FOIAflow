@@ -38,7 +38,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect dashboard routes
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  if (!user && request.nextUrl?.pathname?.startsWith("/dashboard")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
   ];
   if (
     !user &&
-    protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p))
+    protectedPaths.some((p) => request.nextUrl?.pathname?.startsWith(p))
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

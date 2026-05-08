@@ -7,8 +7,8 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function getPostgresUrl(): string {
-  const raw = process.env.DATABASE_URL!;
-  if (raw.startsWith("prisma+postgres://")) {
+  const raw = process.env.DATABASE_URL || "";
+  if (raw && raw.startsWith("prisma+postgres://")) {
     const match = raw.match(/api_key=(.+)/);
     if (match) {
       const decoded = JSON.parse(Buffer.from(match[1], "base64").toString());
