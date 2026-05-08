@@ -320,6 +320,62 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ── Problem ─────────────────────────────────────────────────── */}
+        <section
+          className="relative py-20 lg:py-28 bg-cover bg-center"
+          style={{ backgroundImage: "url('/problem-section.png')" }}
+        >
+          {/* Dark overlay so text stays legible over the image */}
+          <div className="absolute inset-0 bg-foreground/75" />
+
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {/* Heading */}
+            <div className="max-w-2xl mb-12">
+              <p className="text-xs font-medium uppercase tracking-widest text-secondary mb-4">
+                The Problem
+              </p>
+              <h2 className="font-heading text-3xl lg:text-4xl text-white leading-tight">
+                The FOIA process is{" "}
+                <br className="hidden sm:block" />
+                <em>broken.</em>
+              </h2>
+            </div>
+
+            {/* Three pain points — same grid pattern as Features section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-white/10 border border-white/10">
+              {[
+                {
+                  number: "01",
+                  title: "Deadlines slip through the cracks",
+                  body: "Twenty business days. That\u2019s federal law. 94% of agencies ignore it. Most journalists never notice until the story is cold.",
+                },
+                {
+                  number: "02",
+                  title: "Only 3% of denials are ever appealed",
+                  body: "Yet 40% of those appeals succeed. Journalists leave records on the table because no tool automates the pushback.",
+                },
+                {
+                  number: "03",
+                  title: "Agencies weaponize fees to kill requests",
+                  body: "One nonprofit was billed $1.2 million. One journalist brought a $2,800 fee down to $29 with the right language. FOIAflow writes that language on every request.",
+                },
+              ].map((item) => (
+                <div key={item.number} className="bg-foreground/40 p-6 lg:p-8">
+                  <p className="font-heading text-xs tracking-widest text-secondary mb-3">
+                    {item.number}
+                  </p>
+                  <h3 className="font-heading text-lg text-white mb-3">
+                    {item.title}
+                  </h3>
+                  <p className="text-sm text-white/70 leading-relaxed">
+                    {item.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ── Credibility strip ──────────────────────────────────────── */}
         <div className="border-y border-border bg-muted/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
@@ -489,7 +545,10 @@ export default function HomePage() {
         </section>
 
         {/* ── CTA ─────────────────────────────────────────────────────── */}
-        <section className="border-t border-border bg-surface">
+        <section
+          className="relative border-t border-border bg-cover bg-center"
+          style={{ backgroundImage: "url('/cta-image.jpg')" }}
+        >
           <div
             ref={ctaReveal.ref}
             className={cn(
