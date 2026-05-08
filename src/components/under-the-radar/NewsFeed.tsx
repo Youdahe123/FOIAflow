@@ -361,53 +361,14 @@ export default function NewsFeed() {
 
   const loadMarketData = async () => {
     try {
-      const res = await fetch(
-        `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=SPY&interval=5min&apikey=${process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY}&outputsize=compact`
-      );
+      const res = await fetch("/api/market");
       const data = await res.json();
-      const timeSeries = data["Time Series (5min)"];
-      if (!timeSeries) {
-        const note = data["Note"] ?? data["Information"] ?? null;
-        const isRateLimit = note && note.includes("API");
-        const now = new Date();
-        const day = now.getUTCDay();
-        const hour = now.getUTCHours();
-        const isWeekend = day === 0 || day === 6;
-        const isAfterHours = hour < 13 || hour >= 21;
-
-        if (isWeekend) {
-          setMarketMeta({ price: "—", change: "Market Closed", changePercent: "Weekend", positive: true });
-        } else if (isAfterHours) {
-          setMarketMeta({ price: "—", change: "After Hours", changePercent: "Opens 9:30AM EST", positive: true });
-        } else if (isRateLimit) {
-          setMarketMeta({ price: "—", change: "Rate Limited", changePercent: "25 calls/day max", positive: true });
-        } else {
-          setMarketMeta({ price: "—", change: "Unavailable", changePercent: "Try again later", positive: true });
-        }
-        setMarketLoading(false);
-        return;
-      }
-
-      const entries = Object.entries(timeSeries)
-        .slice(0, 30)
-        .reverse()
-        .map(([time, values]: [string, any]) => ({
-          time: time.slice(11, 16),
-          price: parseFloat(values["4. close"]),
-        }));
-
-      const latest = entries[entries.length - 1]?.price ?? 0;
-      const earliest = entries[0]?.price ?? 0;
-      const change = latest - earliest;
-      const changePercent = ((change / earliest) * 100).toFixed(2);
-      const positive = change >= 0;
-
-      setMarketData(entries);
+      if (data.points?.length > 0) setMarketData(data.points);
       setMarketMeta({
-        price: latest.toFixed(2),
-        change: (positive ? "+" : "") + change.toFixed(2),
-        changePercent: (positive ? "+" : "") + changePercent + "%",
-        positive,
+        price: data.price,
+        change: data.change,
+        changePercent: data.changePercent,
+        positive: data.positive,
       });
       setMarketLoading(false);
     } catch (err) {
